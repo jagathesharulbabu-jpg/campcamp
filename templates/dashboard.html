@@ -1,0 +1,768 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}PopupLeads Hub - Country Campaigns & Client Leads Dashboard{% endblock %}
+
+{% block content %}
+<div class="app-layout" id="appLayout">
+  
+  <!-- Left Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h2>PopupLeads</h2>
+          <span>Campaign Hub</span>
+        </div>
+      </div>
+      <button class="sidebar-toggle-btn" id="sidebarCloseBtn" title="Toggle Sidebar" aria-label="Toggle Sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- User Role Profile Badge in Sidebar -->
+    <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs">
+      <div>
+        <p class="font-bold text-slate-800">{{ user.first_name|default:user.username }}</p>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {% if user.is_admin_user %}bg-emerald-100 text-emerald-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+          {{ user.get_role_display }}
+        </span>
+      </div>
+      <a href="{% url 'logout' %}" class="font-bold text-red-500 hover:text-red-700">Logout</a>
+    </div>
+
+    <!-- Main Sidebar Navigation -->
+    <div class="sidebar-nav-menu">
+      <div class="px-3 pt-2 pb-1 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+        Core Operations
+      </div>
+
+      <!-- 1. Country Campaigns Button -->
+      <button type="button" class="sidebar-nav-btn active" id="tabCampaignsBtn" data-view="campaigns">
+        <div class="sidebar-nav-btn-left">
+          <span class="sidebar-nav-icon">🌍</span>
+          <span>Country Campaigns</span>
+        </div>
+        <span class="sidebar-badge sidebar-badge-blue" id="sidebarCampaignsBadge">{{ countries|length }}</span>
+      </button>
+
+      <!-- 2. DigitalOcean Button -->
+      <button type="button" class="sidebar-nav-btn" id="tabDigitalOceanBtn" data-view="digitalocean">
+        <div class="sidebar-nav-btn-left">
+          <span class="sidebar-nav-icon">🌊</span>
+          <span>DigitalOcean</span>
+        </div>
+        <span class="sidebar-badge sidebar-badge-emerald" id="sidebarDoBadge">{{ do_running }} Running</span>
+      </button>
+
+      <!-- 3. Azure Button -->
+      <button type="button" class="sidebar-nav-btn" id="tabAzureBtn" data-view="azure">
+        <div class="sidebar-nav-btn-left">
+          <span class="sidebar-nav-icon">🔷</span>
+          <span>Microsoft Azure</span>
+        </div>
+        <span class="sidebar-badge sidebar-badge-emerald" id="sidebarAzureBadge">{{ azure_running }} Running</span>
+      </button>
+
+      <!-- 4. Daily Calls Link -->
+      <a href="{% url 'call_logs' %}" class="sidebar-nav-btn">
+        <div class="sidebar-nav-btn-left">
+          <span class="sidebar-nav-icon">📞</span>
+          <span>Daily Calls</span>
+        </div>
+        <span class="text-xs text-slate-400">↗</span>
+      </a>
+
+      <!-- Quick Action: Add Cloud Account -->
+      <div class="pt-3 px-1 mt-auto">
+        <button type="button" class="btn btn-outline btn-block text-xs font-semibold py-2" id="sidebarAddCloudAccountBtn">
+          <span>+ Add Cloud Account</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Dashboard Area -->
+  <div class="main-wrapper">
+    
+    <!-- Top Navigation Bar -->
+    <header class="top-navbar">
+      <div class="nav-left">
+        <button class="menu-btn" id="menuToggleBtn" aria-label="Open Sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        
+        <div class="header-breadcrumbs">
+          <span class="crumb-lead">Dashboard</span>
+          <span class="crumb-separator">/</span>
+          <span class="crumb-current" id="activeViewLabel">All Country Campaigns</span>
+        </div>
+      </div>
+
+      <div class="nav-center">
+        <div class="global-search-box">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="globalSearchInput" placeholder="Search country, client, mobile # or popup URL (Press '/' to focus)..." autocomplete="off">
+          <kbd class="search-shortcut">/</kbd>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <!-- Google Sheets View Buttons -->
+        <div class="sheet-nav-buttons">
+          <button class="btn btn-sheet-view" id="viewSheet1Btn" title="View Google Sheet 1 (Leads Data)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="8" y1="13" x2="16" y2="13"/>
+              <line x1="8" y1="17" x2="16" y2="17"/>
+            </svg>
+            <span>Sheet 1</span>
+          </button>
+
+          <button class="btn btn-sheet-view" id="viewSheet2Btn" title="View Google Sheet 2 (Campaigns Data)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="8" y1="13" x2="16" y2="13"/>
+              <line x1="8" y1="17" x2="16" y2="17"/>
+            </svg>
+            <span>Sheet 2</span>
+          </button>
+        </div>
+
+        <button class="btn btn-outline" id="exportCsvBtn" title="Download data as CSV">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <span>Export CSV</span>
+        </button>
+        
+        <button class="btn btn-primary" id="topAddCountryBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>New Country</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Embedded Google Sheet Viewer -->
+    <section class="sheet-embed-view hidden" id="sheetEmbedView">
+      <div class="sheet-view-header">
+        <div class="sheet-header-left">
+          <button class="btn btn-primary btn-sm" id="returnToDashboardBtn" title="Return back to Campaigns Dashboard">
+            <span>← Return to Dashboard</span>
+          </button>
+          
+          <div class="sheet-title-info">
+            <h3 id="currentSheetTitle">Google Sheet 1 (Leads Data)</h3>
+            <span class="sheet-badge-readonly">🔒 Private View-Only</span>
+          </div>
+        </div>
+
+        <div class="sheet-header-right">
+          <div class="sheet-date-selector">
+            <span class="sheet-date-label">📅 Date:</span>
+            <div class="sheet-date-buttons">
+              <button type="button" class="btn btn-date-tab active" id="sheetTodayBtn">
+                <span>Today (<strong id="todayDateLabel">Today</strong>)</span>
+              </button>
+              <button type="button" class="btn btn-date-tab" id="sheetYesterdayBtn">
+                <span>Yesterday (<strong id="yesterdayDateLabel">Yesterday</strong>)</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="sheet-gid-setter">
+            <div class="sheet-gid-input-wrap">
+              <input type="text" id="sheetGidInput" class="sheet-gid-input" placeholder="Paste latest tab link or GID #">
+              <button type="button" class="btn btn-primary btn-sm" id="saveSheetGidBtn">
+                <span>💾 Save Tab</span>
+              </button>
+            </div>
+          </div>
+          
+          <a href="#" id="openExternalSheetBtn" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm">
+            <span>Open in Google Sheets ↗</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="sheet-iframe-card">
+        <iframe id="googleSheetIframe" class="google-sheet-frame" src="" frameborder="0" allowfullscreen></iframe>
+      </div>
+    </section>
+
+    <!-- Main Dashboard Content -->
+    <main class="dashboard-content" id="dashboardMainContent">
+      
+      <!-- ===================================================================
+           1. COUNTRY CAMPAIGNS VIEW
+           =================================================================== -->
+      <div class="view-panel" id="viewCampaignsSection">
+        <!-- ===================================================================
+             LIVE GEO CALLS & LAST CALL TIME TRACKER (Replaced KPI Cards)
+             Real-time monitoring: DE 22, AT 14, UK 31, US 20, etc. + Last Call Time
+             =================================================================== -->
+        <section class="geo-calls-tracker-panel" id="geoCallsTrackerPanel">
+          <div class="geo-tracker-header">
+            <div class="geo-tracker-title-wrap">
+              <div class="geo-tracker-icon-badge">
+                <span class="pulse-call-ring"></span>
+                <span>📞</span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="geo-tracker-title">Live Geo Calls & Activity Pulse</h3>
+                  <span class="live-pulse-badge">
+                    <span class="badge-pulse-dot"></span>
+                    <span>LIVE PULSE</span>
+                  </span>
+                </div>
+                <p class="geo-tracker-subtitle">Active call count & last call timestamp per country (Sheet 1 & 2 Sync Ready)</p>
+              </div>
+            </div>
+
+            <div class="geo-tracker-summary-group">
+              <div class="total-calls-pill">
+                <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Calls Today</span>
+                <span class="total-calls-number" id="totalCallsTodayCount">{{ total_calls_today }}</span>
+              </div>
+              <button type="button" class="btn btn-outline btn-sm sync-pulse-btn" id="refreshGeoCallsBtn" title="Sync live call numbers from database / sheets">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                <span>Live Sync</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Horizontal Grid of Country Geo Call Cards -->
+          <div class="geo-cards-grid" id="geoCardsGrid">
+            {% for geo in geo_stats %}
+            <div class="geo-call-card geo-card-{{ geo.accent }}" data-geo-code="{{ geo.code }}">
+              <div class="geo-card-top">
+                <div class="geo-badge-flag">
+                  <span class="geo-flag-emoji">{{ geo.flag }}</span>
+                  <div class="geo-code-info">
+                 
+                    <span class="geo-name-text">{{ geo.name }}</span>
+                  </div>
+                </div>
+                <span class="geo-active-dot" title="Active campaign country"></span>
+              </div>
+
+              <div class="geo-card-count-row">
+                <span class="geo-calls-count">{{ geo.calls_count }}</span>
+                <span class="geo-calls-unit">Calls</span>
+              </div>
+
+              <div class="geo-card-time-row">
+                <span class="geo-time-icon">🕒</span>
+                <span class="geo-last-call-text">Last call: <strong class="geo-time-highlight">{{ geo.last_call_time }}</strong></span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </section>
+
+        <!-- Live Status Rows -->
+        <section class="live-status-section">
+          <div class="status-row active-row">
+            <div class="status-row-header">
+              <div class="status-title-group">
+                <span class="status-indicator-dot dot-active"></span>
+                <span class="status-title">Running Countries (Active)</span>
+              </div>
+              <span class="status-badge-count bg-emerald-light text-emerald" id="runningCountriesCount">0 Running</span>
+            </div>
+            <div class="status-chips-container" id="runningCountriesChips"></div>
+          </div>
+
+          <div class="status-row paused-row">
+            <div class="status-row-header">
+              <div class="status-title-group">
+                <span class="status-indicator-dot dot-paused"></span>
+                <span class="status-title">Paused / Stopped Countries</span>
+              </div>
+              <span class="status-badge-count bg-amber-light text-amber" id="pausedCountriesCount">0 Paused</span>
+            </div>
+            <div class="status-chips-container" id="pausedCountriesChips"></div>
+          </div>
+        </section>
+
+        <!-- Filter Bar -->
+        <section class="main-filter-bar">
+          <div class="filter-left">
+            <h1 class="section-heading">Country Campaigns & Leads</h1>
+            <p class="section-subtext">Manage country popup configurations, active client accounts, and lead capture links.</p>
+          </div>
+
+          <div class="filter-right">
+            <div class="status-filter-group" id="statusFilterGroup">
+              <button class="filter-pill active" data-filter="all">All (<span id="countFilterAll">{{ countries|length }}</span>)</button>
+              <button class="filter-pill" data-filter="active">Active (<span id="countFilterActive">{{ active_countries }}</span>)</button>
+              <button class="filter-pill" data-filter="paused">Paused (<span id="countFilterPaused">{{ paused_countries }}</span>)</button>
+            </div>
+
+            <div class="select-wrapper">
+              <select id="sortSelect" class="form-select">
+                <option value="name-asc">Sort: Name (A-Z)</option>
+                <option value="name-desc">Sort: Name (Z-A)</option>
+                <option value="clients-desc">Sort: Most Clients</option>
+                <option value="links-desc">Sort: Most Links</option>
+              </select>
+            </div>
+
+            <button class="btn btn-outline btn-sm" id="toggleAllCollapseBtn">
+              <span id="collapseBtnText">Collapse All</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Country Cards Container (Rendered via app.js through Django API) -->
+        <section class="country-cards-grid" id="countryCardsContainer"></section>
+
+        <!-- Empty State View -->
+        <div class="empty-state hidden" id="emptyStateView">
+          <div class="empty-state-icon">🌍</div>
+          <h3 id="emptyStateTitle">No country campaigns found</h3>
+          <p id="emptyStateMessage">Start by adding your first country popup campaign.</p>
+          <button class="btn btn-primary" id="emptyStateAddBtn">+ Add First Country</button>
+        </div>
+      </div>
+
+      <!-- ===================================================================
+           2. DIGITALOCEAN INFRASTRUCTURE VIEW
+           =================================================================== -->
+      <div class="view-panel hidden" id="viewDigitalOceanSection">
+        <!-- DO Hero Banner -->
+        <div class="cloud-hero-header">
+          <div class="cloud-hero-left">
+            <div class="cloud-provider-avatar avatar-do">
+              <span>🌊</span>
+            </div>
+            <div>
+              <h2 class="cloud-hero-title">DigitalOcean Droplets & Infrastructure</h2>
+              <p class="cloud-hero-subtitle">Real-time status of running accounts, available allocations, purchase & expiry dates, and mapped campaign domains.</p>
+            </div>
+          </div>
+          <div class="cloud-hero-actions">
+            <button class="btn btn-primary" id="openAddDoBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>+ Add DO Account</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- DO KPI Strip -->
+        <section class="kpi-strip">
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Running Accounts</span>
+              <h3 class="kpi-value text-emerald" id="doRunningCount">{{ do_running }}</h3>
+            </div>
+            <div class="kpi-icon bg-emerald-light text-emerald">🟢</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Available (Standby)</span>
+              <h3 class="kpi-value text-indigo" id="doAvailableCount">{{ do_available }}</h3>
+            </div>
+            <div class="kpi-icon bg-indigo-light text-indigo">🔵</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Expired Accounts</span>
+              <h3 class="kpi-value text-amber" id="doExpiredCount">{{ do_expired }}</h3>
+            </div>
+            <div class="kpi-icon bg-amber-light text-amber">🔴</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Total DO Accounts</span>
+              <h3 class="kpi-value text-teal" id="doTotalCount">{{ do_accounts|length }}</h3>
+            </div>
+            <div class="kpi-icon bg-teal-light text-teal">☁️</div>
+          </div>
+        </section>
+
+        <!-- DO Filter Bar -->
+        <section class="main-filter-bar">
+          <div class="filter-left">
+            <h2 class="section-heading">DigitalOcean Account Credentials & Domains</h2>
+            <p class="section-subtext">Click any domain or IP address to copy it instantly to clipboard.</p>
+          </div>
+
+          <div class="filter-right">
+            <div class="status-filter-group" id="doStatusFilterGroup">
+              <button class="filter-pill active" data-cloud-filter="ALL" data-provider="DIGITALOCEAN">All ({{ do_accounts|length }})</button>
+              <button class="filter-pill" data-cloud-filter="RUNNING" data-provider="DIGITALOCEAN">🟢 Running ({{ do_running }})</button>
+              <button class="filter-pill" data-cloud-filter="AVAILABLE" data-provider="DIGITALOCEAN">🔵 Available ({{ do_available }})</button>
+              <button class="filter-pill" data-cloud-filter="EXPIRED" data-provider="DIGITALOCEAN">🔴 Expired ({{ do_expired }})</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- DigitalOcean Accounts Grid -->
+        <div class="cloud-cards-grid" id="doCardsContainer"></div>
+      </div>
+
+      <!-- ===================================================================
+           3. MICROSOFT AZURE INFRASTRUCTURE VIEW
+           =================================================================== -->
+      <div class="view-panel hidden" id="viewAzureSection">
+        <!-- Azure Hero Banner -->
+        <div class="cloud-hero-header">
+          <div class="cloud-hero-left">
+            <div class="cloud-provider-avatar avatar-azure">
+              <span>🔷</span>
+            </div>
+            <div>
+              <h2 class="cloud-hero-title">Microsoft Azure Cloud Infrastructure</h2>
+              <p class="cloud-hero-subtitle">Real-time status of running VMs, available cloud allocations, purchase & expiry dates, and mapped campaign domains.</p>
+            </div>
+          </div>
+          <div class="cloud-hero-actions">
+            <button class="btn btn-primary" id="openAddAzureBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>+ Add Azure Account</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Azure KPI Strip -->
+        <section class="kpi-strip">
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Running Accounts</span>
+              <h3 class="kpi-value text-emerald" id="azureRunningCount">{{ azure_running }}</h3>
+            </div>
+            <div class="kpi-icon bg-emerald-light text-emerald">🟢</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Available (Standby)</span>
+              <h3 class="kpi-value text-indigo" id="azureAvailableCount">{{ azure_available }}</h3>
+            </div>
+            <div class="kpi-icon bg-indigo-light text-indigo">🔵</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Expired Accounts</span>
+              <h3 class="kpi-value text-amber" id="azureExpiredCount">{{ azure_expired }}</h3>
+            </div>
+            <div class="kpi-icon bg-amber-light text-amber">🔴</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Total Azure Accounts</span>
+              <h3 class="kpi-value text-teal" id="azureTotalCount">{{ azure_accounts|length }}</h3>
+            </div>
+            <div class="kpi-icon bg-teal-light text-teal">☁️</div>
+          </div>
+        </section>
+
+        <!-- Azure Filter Bar -->
+        <section class="main-filter-bar">
+          <div class="filter-left">
+            <h2 class="section-heading">Azure Account Credentials & Domains</h2>
+            <p class="section-subtext">Click any domain or VM IP address to copy it instantly to clipboard.</p>
+          </div>
+
+          <div class="filter-right">
+            <div class="status-filter-group" id="azureStatusFilterGroup">
+              <button class="filter-pill active" data-cloud-filter="ALL" data-provider="AZURE">All ({{ azure_accounts|length }})</button>
+              <button class="filter-pill" data-cloud-filter="RUNNING" data-provider="AZURE">🟢 Running ({{ azure_running }})</button>
+              <button class="filter-pill" data-cloud-filter="AVAILABLE" data-provider="AZURE">🔵 Available ({{ azure_available }})</button>
+              <button class="filter-pill" data-cloud-filter="EXPIRED" data-provider="AZURE">🔴 Expired ({{ azure_expired }})</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Azure Accounts Grid -->
+        <div class="cloud-cards-grid" id="azureCardsContainer"></div>
+      </div>
+
+    </main>
+
+  </div>
+</div>
+
+<!-- Hidden CSRF token for AJAX / API calls -->
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" id="csrfToken">
+
+<!-- Modals Container -->
+<div class="modal-backdrop" id="modalBackdrop"></div>
+
+<!-- Country & Client Modal -->
+<div class="modal" id="countryModal" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div class="modal-title-wrap">
+      <span class="modal-icon-badge">🌍</span>
+      <h3 id="countryModalTitle">Add New Country</h3>
+    </div>
+    <button class="modal-close-btn" data-close-modal="countryModal">×</button>
+  </div>
+  <form id="countryForm">
+    <input type="hidden" id="countryIdInput">
+    <input type="hidden" id="countryClientIdInput">
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="countryNameInput">Country Name <span class="required">*</span></label>
+        <input type="text" id="countryNameInput" class="form-control" placeholder="e.g. United Arab Emirates" required autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Country Flag Emoji <span class="required">*</span></label>
+        <div class="flag-input-row">
+          <input type="text" id="countryFlagInput" class="form-control flag-text-input" placeholder="🇦🇪" maxlength="8" required>
+          <div class="flag-quick-pickers" id="flagQuickPickers">
+            <button type="button" class="flag-chip" data-flag="🇮🇳">🇮🇳 India</button>
+            <button type="button" class="flag-chip" data-flag="🇦🇪">🇦🇪 UAE</button>
+            <button type="button" class="flag-chip" data-flag="🇺🇸">🇺🇸 USA</button>
+            <button type="button" class="flag-chip" data-flag="🇬🇧">🇬🇧 UK</button>
+            <button type="button" class="flag-chip" data-flag="🇸🇦">🇸🇦 Saudi</button>
+            <button type="button" class="flag-chip" data-flag="🇩🇪">🇩🇪 Germany</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="countryStatusSelect">Campaign Status</label>
+        <select id="countryStatusSelect" class="form-select">
+          <option value="ACTIVE">Active (Running Popups)</option>
+          <option value="PAUSED">Paused (Popups Stopped)</option>
+        </select>
+      </div>
+
+      <div class="modal-section-title">
+        <div class="modal-section-icon">🏢</div>
+        <div>
+          <h4>Client Details</h4>
+          <span class="modal-section-subtitle">Client account running popup leads in this country</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="countryClientNameInput">Client / Business Name <span class="required">*</span></label>
+        <input type="text" id="countryClientNameInput" class="form-control" placeholder="e.g. Apex Global Realty" required autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label for="countryClientContactInput">Client Contact (Email / Phone - Optional)</label>
+        <input type="text" id="countryClientContactInput" class="form-control" placeholder="contact@apexrealty.com / +1 (555) 349-8821">
+      </div>
+
+      <div class="form-group">
+        <label for="countryClientNotesInput">Campaign / Client Notes (Optional)</label>
+        <textarea id="countryClientNotesInput" class="form-control" rows="2" placeholder="e.g. VIP lead capture campaign"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close-modal="countryModal">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="saveCountrySubmitBtn">Save Country & Client</button>
+    </div>
+  </form>
+</div>
+
+<!-- Link Entry Modal -->
+<div class="modal" id="entryModal" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div class="modal-title-wrap">
+      <span class="modal-icon-badge">🔗</span>
+      <h3 id="entryModalTitle">Add Lead Popup Link Entry</h3>
+    </div>
+    <button class="modal-close-btn" data-close-modal="entryModal">×</button>
+  </div>
+  <form id="entryForm">
+    <input type="hidden" id="entryCountryIdInput">
+    <input type="hidden" id="entryClientIdInput">
+    <input type="hidden" id="entryIdInput">
+    <div class="modal-body">
+      <div class="form-banner" id="entryContextBanner">
+        Adding entry for: <strong id="entryTargetClientName">Client</strong>
+      </div>
+      <div class="form-group">
+        <label for="entryLinkInput">Popup Link URL <span class="required">*</span></label>
+        <input type="url" id="entryLinkInput" class="form-control" placeholder="https://landing.domain.com/campaign-popup-v1" required>
+      </div>
+      <div class="form-group">
+        <div class="label-row">
+          <label for="entryTimeInput">Time Inserted <span class="required">*</span></label>
+          <button type="button" class="btn-text-action" id="setCurrentTimeBtn">Set to Current Time</button>
+        </div>
+        <input type="datetime-local" id="entryTimeInput" class="form-control" required>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close-modal="entryModal">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="saveEntrySubmitBtn">Save Link Entry</button>
+    </div>
+  </form>
+</div>
+
+<!-- Quick Edit Mobile Number Modal -->
+<div class="modal" id="editMobileModal" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div class="modal-title-wrap">
+      <span class="modal-icon-badge">📞</span>
+      <h3 id="editMobileModalTitle">Edit Geo Mobile Number</h3>
+    </div>
+    <button class="modal-close-btn" data-close-modal="editMobileModal">×</button>
+  </div>
+  <form id="editMobileForm">
+    <input type="hidden" id="editMobileClientId">
+    <input type="hidden" id="editMobileCountryId">
+    <div class="modal-body">
+      <div class="form-banner mb-3" id="editMobileContextBanner">
+        Updating phone contact for: <strong id="editMobileTargetName">Country / Client</strong>
+      </div>
+      <div class="form-group">
+        <label for="editMobileNumberInput">Active Mobile Number <span class="required">*</span></label>
+        <input type="text" id="editMobileNumberInput" class="form-control text-base font-semibold" placeholder="e.g. +43 660 1234567 or 777733333" required autocomplete="off">
+        <span class="text-xs text-slate-500 mt-1 block">This phone number is displayed on the country card and assigned to incoming leads.</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close-modal="editMobileModal">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="saveMobileSubmitBtn">Save Mobile Number</button>
+    </div>
+  </form>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal modal-danger" id="confirmModal">
+  <div class="modal-header">
+    <h3 id="confirmModalTitle">Confirm Action</h3>
+    <button class="modal-close-btn" data-close-modal="confirmModal">×</button>
+  </div>
+  <div class="modal-body">
+    <p class="confirm-message" id="confirmModalMessage">Are you sure you want to proceed?</p>
+    <div class="confirm-target-box" id="confirmModalTargetBox">
+      <strong id="confirmModalTargetName">Target</strong>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-outline" data-close-modal="confirmModal">Cancel</button>
+    <button type="button" class="btn btn-danger" id="confirmModalActionBtn">Delete</button>
+  </div>
+</div>
+
+<!-- Cloud Infrastructure Account Modal (DigitalOcean & Azure) -->
+<div class="modal" id="cloudAccountModal" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div class="modal-title-wrap">
+      <span class="modal-icon-badge" id="cloudModalIcon">☁️</span>
+      <h3 id="cloudModalTitle">Add Cloud Infrastructure Account</h3>
+    </div>
+    <button class="modal-close-btn" data-close-modal="cloudAccountModal">×</button>
+  </div>
+  <form id="cloudAccountForm">
+    <input type="hidden" id="cloudAccountIdInput">
+    <div class="modal-body">
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="form-group">
+          <label for="cloudProviderSelect">Cloud Provider <span class="required">*</span></label>
+          <select id="cloudProviderSelect" class="form-select" required>
+            <option value="DIGITALOCEAN">🌊 DigitalOcean</option>
+            <option value="AZURE">🔷 Microsoft Azure</option>
+            <option value="AWS">🟧 Amazon Web Services</option>
+            <option value="CLOUDFLARE">🟧 Cloudflare</option>
+            <option value="OTHER">🌐 Other Infrastructure</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="cloudStatusSelect">Operating Status <span class="required">*</span></label>
+          <select id="cloudStatusSelect" class="form-select" required>
+            <option value="RUNNING">🟢 Running / Active</option>
+            <option value="AVAILABLE">🔵 Available / Standby</option>
+            <option value="EXPIRED">🔴 Expired / Inactive</option>
+            <option value="SUSPENDED">⚠️ Suspended / Review</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group mb-3">
+        <label for="cloudAccountNameInput">Account / Cluster Name <span class="required">*</span></label>
+        <input type="text" id="cloudAccountNameInput" class="form-control" placeholder="e.g. DigitalOcean - Primary Production Droplets" required autocomplete="off">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="form-group">
+          <label for="cloudEmailInput">Account Login Email</label>
+          <input type="email" id="cloudEmailInput" class="form-control" placeholder="ops@popupleads.com" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="cloudAccountIdStrInput">Subscription / Project ID</label>
+          <input type="text" id="cloudAccountIdStrInput" class="form-control" placeholder="e.g. do-team-core-2026 or sub-8812-4410" autocomplete="off">
+        </div>
+      </div>
+
+      <!-- Purchase Date & Expiry Date -->
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="form-group">
+          <label for="cloudPurchasedAtInput">📅 Purchased Date</label>
+          <input type="date" id="cloudPurchasedAtInput" class="form-control">
+        </div>
+        <div class="form-group">
+          <label for="cloudExpiresAtInput">⏳ Expiry Date</label>
+          <input type="date" id="cloudExpiresAtInput" class="form-control">
+        </div>
+      </div>
+
+      <!-- Domains Used -->
+      <div class="form-group mb-3">
+        <label for="cloudDomainsInput">🌐 Domains Used in This Account</label>
+        <textarea id="cloudDomainsInput" class="form-control font-mono text-xs" rows="3" placeholder="Enter domains separated by comma or new line (e.g. leaddeal-eu.com, offerproxy-de.net, fastleads-de.io)"></textarea>
+        <span class="text-[11px] text-slate-500 mt-1 block">Specify domains currently assigned to or routed through this account.</span>
+      </div>
+
+      <!-- Server Droplet / VM IPs -->
+      <div class="form-group mb-3">
+        <label for="cloudIpsInput">🖥️ Server Droplet / VM IP Addresses</label>
+        <input type="text" id="cloudIpsInput" class="form-control font-mono text-xs" placeholder="e.g. 165.227.102.44, 159.89.230.12">
+      </div>
+
+      <div class="form-group">
+        <label for="cloudNotesInput">Notes / Billing Details</label>
+        <textarea id="cloudNotesInput" class="form-control" rows="2" placeholder="e.g. High-memory droplets, monthly renewal on 15th"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close-modal="cloudAccountModal">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="saveCloudAccountSubmitBtn">Save Account Details</button>
+    </div>
+  </form>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/app.js' %}?v=5.0"></script>
+{% endblock %}

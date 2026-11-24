@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PopupLeads Hub - Country Campaigns & Client Leads Dashboard</title>
+  <meta name="description" content="Manage country-specific popup campaigns, clients, and lead links with live status toggles, mobile lead lists, and export features.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            heading: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- App Container -->
+  <div class="app-layout" id="appLayout">
+    
+    <!-- Left Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h2>PopupLeads</h2>
+            <span>Campaign Hub</span>
+          </div>
+        </div>
+        <button class="sidebar-toggle-btn" id="sidebarCloseBtn" title="Toggle Sidebar" aria-label="Toggle Sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Quick Action -->
+      <div class="sidebar-action-wrap">
+        <button class="btn btn-primary btn-block" id="sidebarAddCountryBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Add Country</span>
+        </button>
+      </div>
+
+      <!-- Sidebar Search -->
+      <div class="sidebar-search">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="sidebarSearchInput" placeholder="Filter countries / clients..." autocomplete="off">
+        <button class="clear-input-btn" id="sidebarClearSearchBtn" title="Clear filter">×</button>
+      </div>
+
+      <!-- Navigation & Country Tree List -->
+      <div class="sidebar-section-title">
+        <span>Countries & Clients</span>
+        <span class="count-badge" id="sidebarCountryCount">0</span>
+      </div>
+
+      <nav class="sidebar-nav" id="sidebarCountryList">
+        <!-- Rendered by JS -->
+      </nav>
+
+      <!-- Sidebar Footer -->
+      <div class="sidebar-footer">
+        <div class="system-status">
+          <span class="pulse-indicator"></span>
+          <span>Live Sync Active</span>
+        </div>
+        <div class="sidebar-footer-actions">
+          <button class="btn-icon-subtle" id="sidebarResetDataBtn" title="Reset to Sample Data">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+          </button>
+          <button class="btn-icon-subtle" id="sidebarExportJsonBtn" title="Export JSON">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Dashboard Area -->
+    <div class="main-wrapper">
+      
+      <!-- Top Navigation Bar -->
+      <header class="top-navbar">
+        <div class="nav-left">
+          <button class="menu-btn" id="menuToggleBtn" aria-label="Open Sidebar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          
+          <div class="header-breadcrumbs">
+            <span class="crumb-lead">Dashboard</span>
+            <span class="crumb-separator">/</span>
+            <span class="crumb-current" id="activeViewLabel">All Country Campaigns</span>
+          </div>
+        </div>
+
+        <div class="nav-center">
+          <div class="global-search-box">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="globalSearchInput" placeholder="Search country, client, mobile # or popup URL (Press '/' to focus)..." autocomplete="off">
+            <kbd class="search-shortcut">/</kbd>
+          </div>
+        </div>
+
+        <div class="nav-right">
+          <!-- Google Sheets View Buttons -->
+          <div class="sheet-nav-buttons">
+            <button class="btn btn-sheet-view" id="viewSheet1Btn" title="View Google Sheet 1 (Leads Data)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="8" y1="13" x2="16" y2="13"/>
+                <line x1="8" y1="17" x2="16" y2="17"/>
+              </svg>
+              <span>Sheet 1</span>
+            </button>
+
+            <button class="btn btn-sheet-view" id="viewSheet2Btn" title="View Google Sheet 2 (Campaigns Data)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="8" y1="13" x2="16" y2="13"/>
+                <line x1="8" y1="17" x2="16" y2="17"/>
+              </svg>
+              <span>Sheet 2</span>
+            </button>
+          </div>
+
+          <button class="btn btn-outline" id="exportCsvBtn" title="Download data as CSV">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+            <span>Export CSV</span>
+          </button>
+          
+          <button class="btn btn-primary" id="topAddCountryBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>New Country</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Embedded Google Sheet Viewer (Opens on Sheet 1 or Sheet 2 click) -->
+      <section class="sheet-embed-view hidden" id="sheetEmbedView">
+        <div class="sheet-view-header">
+          <div class="sheet-header-left">
+            <button class="btn btn-primary btn-sm" id="returnToDashboardBtn" title="Return back to Campaigns Dashboard">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+              <span>← Return to Dashboard</span>
+            </button>
+            
+            <div class="sheet-title-info">
+              <h3 id="currentSheetTitle">Google Sheet 1 (Leads Data)</h3>
+              <span class="sheet-badge-readonly">🔒 Private View-Only</span>
+            </div>
+          </div>
+
+          <div class="sheet-header-right">
+            <!-- Date-Based Tab Switcher (Today / Yesterday) -->
+            <div class="sheet-date-selector">
+              <span class="sheet-date-label">📅 Date:</span>
+              <div class="sheet-date-buttons">
+                <button type="button" class="btn btn-date-tab active" id="sheetTodayBtn" title="Open Today's Date Tab">
+                  <span>Today (<strong id="todayDateLabel">Sep 3</strong>)</span>
+                </button>
+                <button type="button" class="btn btn-date-tab" id="sheetYesterdayBtn" title="Open Yesterday's Date Tab">
+                  <span>Yesterday (<strong id="yesterdayDateLabel">Sep 2</strong>)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Set / Paste Latest Tab Link or GID -->
+            <div class="sheet-gid-setter">
+              <div class="sheet-gid-input-wrap">
+                <input type="text" id="sheetGidInput" class="sheet-gid-input" placeholder="Paste latest tab link (e.g. Sep 3 tab) or GID #">
+                <button type="button" class="btn btn-primary btn-sm" id="saveSheetGidBtn" title="Save this tab link to automatically open this latest sheet tab first">
+                  <span>💾 Save Latest Tab</span>
+                </button>
+              </div>
+            </div>
+            
+            <a href="#" id="openExternalSheetBtn" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" title="Open in Google Sheets to click and copy the latest tab URL from your address bar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+              <span>Open in Google Sheets</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Google Sheet Iframe Container -->
+        <div class="sheet-iframe-card">
+          <iframe id="googleSheetIframe" class="google-sheet-frame" src="" frameborder="0" allowfullscreen allow="clipboard-read; clipboard-write"></iframe>
+        </div>
+      </section>
+
+      <!-- Main Dashboard Content -->
+      <main class="dashboard-content" id="dashboardMainContent">
+        
+        <!-- Summary Stats Strip -->
+        <section class="kpi-strip">
+          <div class="kpi-card" id="kpiActiveCard">
+            <div class="kpi-info">
+              <span class="kpi-label">Active Campaigns</span>
+              <h3 class="kpi-value text-emerald" id="kpiActiveCount">0</h3>
+            </div>
+            <div class="kpi-icon bg-emerald-light text-emerald">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="kpi-card" id="kpiPausedCard">
+            <div class="kpi-info">
+              <span class="kpi-label">Paused Campaigns</span>
+              <h3 class="kpi-value text-amber" id="kpiPausedCount">0</h3>
+            </div>
+            <div class="kpi-icon bg-amber-light text-amber">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="4" width="4" height="16"/>
+                <rect x="14" y="4" width="4" height="16"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Total Clients</span>
+              <h3 class="kpi-value text-indigo" id="kpiTotalClients">0</h3>
+            </div>
+            <div class="kpi-icon bg-indigo-light text-indigo">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Popup Lead Links</span>
+              <h3 class="kpi-value text-teal" id="kpiTotalLinks">0</h3>
+            </div>
+            <div class="kpi-icon bg-teal-light text-teal">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+            </div>
+          </div>
+        </section>
+
+        <!-- TOP DASHBOARD SECTION: Live Status Rows -->
+        <section class="live-status-section">
+          
+          <!-- Row 1: Running Countries -->
+          <div class="status-row active-row">
+            <div class="status-row-header">
+              <div class="status-title-group">
+                <span class="status-indicator-dot dot-active"></span>
+                <span class="status-title">Running Countries (Active)</span>
+              </div>
+              <span class="status-badge-count bg-emerald-light text-emerald" id="runningCountriesCount">0 Running</span>
+            </div>
+            <div class="status-chips-container" id="runningCountriesChips">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Row 2: Paused/Stopped Countries -->
+          <div class="status-row paused-row">
+            <div class="status-row-header">
+              <div class="status-title-group">
+                <span class="status-indicator-dot dot-paused"></span>
+                <span class="status-title">Paused / Stopped Countries</span>
+              </div>
+              <span class="status-badge-count bg-amber-light text-amber" id="pausedCountriesCount">0 Paused</span>
+            </div>
+            <div class="status-chips-container" id="pausedCountriesChips">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Main Content Header & Filter Controls -->
+        <section class="main-filter-bar">
+          <div class="filter-left">
+            <h1 class="section-heading">Country Campaigns & Leads</h1>
+            <p class="section-subtext">Manage country popup configurations, active client accounts, and lead capture links.</p>
+          </div>
+
+          <div class="filter-right">
+            <!-- Filter Pills -->
+            <div class="status-filter-group" id="statusFilterGroup">
+              <button class="filter-pill active" data-filter="all">All (<span id="countFilterAll">0</span>)</button>
+              <button class="filter-pill" data-filter="active">Active (<span id="countFilterActive">0</span>)</button>
+              <button class="filter-pill" data-filter="paused">Paused (<span id="countFilterPaused">0</span>)</button>
+            </div>
+
+            <!-- Sort Select -->
+            <div class="select-wrapper">
+              <select id="sortSelect" class="form-select">
+                <option value="name-asc">Sort: Name (A-Z)</option>
+                <option value="name-desc">Sort: Name (Z-A)</option>
+                <option value="clients-desc">Sort: Most Clients</option>
+                <option value="links-desc">Sort: Most Links</option>
+              </select>
+            </div>
+
+            <!-- Collapse/Expand All Cards -->
+            <button class="btn btn-outline btn-sm" id="toggleAllCollapseBtn" title="Expand or Collapse All Cards">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="7 13 12 18 17 13"/>
+                <polyline points="7 6 12 11 17 6"/>
+              </svg>
+              <span id="collapseBtnText">Collapse All</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Country Cards Container -->
+        <section class="country-cards-grid" id="countryCardsContainer">
+          <!-- Dynamically populated via app.js -->
+        </section>
+
+        <!-- Empty State View -->
+        <div class="empty-state hidden" id="emptyStateView">
+          <div class="empty-state-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+          </div>
+          <h3 id="emptyStateTitle">No country campaigns found</h3>
+          <p id="emptyStateMessage">Start by adding your first country popup campaign or adjust your search filters.</p>
+          <button class="btn btn-primary" id="emptyStateAddBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Add Your First Country</span>
+          </button>
+        </div>
+
+      </main>
+
+    </div>
+  </div>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- Modal Backdrop -->
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+
+  <!-- 1. Country & Client Modal (Add / Edit) -->
+  <div class="modal" id="countryModal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <span class="modal-icon-badge">🌍</span>
+        <h3 id="countryModalTitle">Add New Country</h3>
+      </div>
+      <button class="modal-close-btn" data-close-modal="countryModal" aria-label="Close modal">×</button>
+    </div>
+    <form id="countryForm">
+      <input type="hidden" id="countryIdInput">
+      <input type="hidden" id="countryClientIdInput">
+      <div class="modal-body">
+        
+        <!-- Country Section -->
+        <div class="form-group">
+          <label for="countryNameInput">Country Name <span class="required">*</span></label>
+          <input type="text" id="countryNameInput" class="form-control" placeholder="e.g. United Arab Emirates" required autocomplete="off">
+          <span class="form-hint">Enter the target country name for popup distribution.</span>
+        </div>
+
+        <div class="form-group">
+          <label>Country Flag Emoji / Symbol <span class="required">*</span></label>
+          <div class="flag-input-row">
+            <input type="text" id="countryFlagInput" class="form-control flag-text-input" placeholder="🇦🇪" maxlength="8" required>
+            <div class="flag-quick-pickers" id="flagQuickPickers">
+              <button type="button" class="flag-chip" data-flag="🇮🇳">🇮🇳 India</button>
+              <button type="button" class="flag-chip" data-flag="🇦🇪">🇦🇪 UAE</button>
+              <button type="button" class="flag-chip" data-flag="🇺🇸">🇺🇸 USA</button>
+              <button type="button" class="flag-chip" data-flag="🇬🇧">🇬🇧 UK</button>
+              <button type="button" class="flag-chip" data-flag="🇸🇦">🇸🇦 Saudi</button>
+              <button type="button" class="flag-chip" data-flag="🇩🇪">🇩🇪 Germany</button>
+              <button type="button" class="flag-chip" data-flag="🇨🇦">🇨🇦 Canada</button>
+              <button type="button" class="flag-chip" data-flag="🇦🇺">🇦🇺 Australia</button>
+              <button type="button" class="flag-chip" data-flag="🇸🇬">🇸🇬 Singapore</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="countryStatusSelect">Campaign Status</label>
+          <select id="countryStatusSelect" class="form-select">
+            <option value="active">Active (Running Popups)</option>
+            <option value="paused">Paused (Popups Stopped)</option>
+          </select>
+        </div>
+
+        <!-- Client & Campaign Details Section -->
+        <div class="modal-section-title">
+          <div class="modal-section-icon">🏢</div>
+          <div>
+            <h4>Client Details</h4>
+            <span class="modal-section-subtitle">Client account running popup leads in this country</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="countryClientNameInput">Client / Business Name <span class="required">*</span></label>
+          <input type="text" id="countryClientNameInput" class="form-control" placeholder="e.g. Apex Global Realty" required autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="countryClientContactInput">Client Contact (Email / Phone - Optional)</label>
+          <input type="text" id="countryClientContactInput" class="form-control" placeholder="e.g. contact@apexrealty.com / +1 (555) 349-8821" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="countryClientNotesInput">Campaign / Client Notes (Optional)</label>
+          <textarea id="countryClientNotesInput" class="form-control" rows="2" placeholder="e.g. VIP lead capture popup campaign"></textarea>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close-modal="countryModal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveCountrySubmitBtn">Save Country & Client</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 3. Link Entry Modal (Add / Edit) -->
+  <div class="modal" id="entryModal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <span class="modal-icon-badge">🔗</span>
+        <h3 id="entryModalTitle">Add Lead Popup Link Entry</h3>
+      </div>
+      <button class="modal-close-btn" data-close-modal="entryModal" aria-label="Close modal">×</button>
+    </div>
+    <form id="entryForm">
+      <input type="hidden" id="entryCountryIdInput">
+      <input type="hidden" id="entryClientIdInput">
+      <input type="hidden" id="entryIdInput">
+      
+      <div class="modal-body">
+        
+        <div class="form-banner" id="entryContextBanner">
+          Adding entry for: <strong id="entryTargetClientName">Client Name</strong> (<span id="entryTargetCountryName">Country</span>)
+        </div>
+
+        <div class="form-group">
+          <label for="entryLinkInput">Popup Link URL <span class="required">*</span></label>
+          <div class="input-with-icon">
+            <svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            <input type="url" id="entryLinkInput" class="form-control" placeholder="https://landing.domain.com/campaign-popup-v1" required autocomplete="off">
+          </div>
+          <span class="form-hint">The target popup URL where leads are redirected or submitted.</span>
+        </div>
+
+        <div class="form-group">
+          <div class="label-row">
+            <label for="entryTimeInput">Time Inserted (Date & Time) <span class="required">*</span></label>
+            <button type="button" class="btn-text-action" id="setCurrentTimeBtn">Set to Current Time</button>
+          </div>
+          <input type="datetime-local" id="entryTimeInput" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label for="entryMobileInput">Associated Mobile Number(s) <span class="required">*</span></label>
+          <div class="input-with-icon">
+            <svg class="field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+            <input type="text" id="entryMobileInput" class="form-control" placeholder="+91 9876543210, +91 9123456789" required autocomplete="off">
+          </div>
+          <span class="form-hint">Support multiple comma-separated mobile numbers for multi-agent leads alert.</span>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close-modal="entryModal">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveEntrySubmitBtn">Save Link Entry</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 4. Confirmation Modal (Safe Delete) -->
+  <div class="modal modal-danger" id="confirmModal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="danger-icon-badge">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <h3 id="confirmModalTitle">Confirm Action</h3>
+      </div>
+      <button class="modal-close-btn" data-close-modal="confirmModal" aria-label="Close modal">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-message" id="confirmModalMessage">Are you sure you want to delete this item? This action cannot be undone.</p>
+      <div class="confirm-target-box" id="confirmModalTargetBox">
+        <strong id="confirmModalTargetName">Target Item</strong>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close-modal="confirmModal">Cancel</button>
+      <button type="button" class="btn btn-danger" id="confirmModalActionBtn">Delete Permanently</button>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
