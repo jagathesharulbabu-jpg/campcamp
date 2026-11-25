@@ -79,6 +79,15 @@
         <span class="text-xs text-slate-400">↗</span>
       </a>
 
+      <!-- 5. Sheet & Country Settings Button -->
+      <button type="button" class="sidebar-nav-btn" id="tabSettingsBtn" data-view="settings">
+        <div class="sidebar-nav-btn-left">
+          <span class="sidebar-nav-icon">⚙️</span>
+          <span>Settings</span>
+        </div>
+        <span class="sidebar-badge sidebar-badge-blue">Mapping</span>
+      </button>
+
       <!-- Quick Action: Add Cloud Account -->
       <div class="pt-3 px-1 mt-auto">
         <button type="button" class="btn btn-outline btn-block text-xs font-semibold py-2" id="sidebarAddCloudAccountBtn">
@@ -230,12 +239,18 @@
                 <span>📞</span>
               </div>
               <div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <h3 class="geo-tracker-title">Live Geo Calls & Activity Pulse</h3>
                   <span class="live-pulse-badge">
                     <span class="badge-pulse-dot"></span>
                     <span>LIVE PULSE</span>
                   </span>
+                  <!-- Today's Sheet Tab Pill (Circled by user with 'tab') -->
+                  <div class="pulse-tab-badge" id="pulseTabIndicator" title="Click to view or switch today's Google Sheet tab">
+                    <span class="pulse-tab-icon">📑</span>
+                    <span class="pulse-tab-text" id="pulseTabLabel">Tab: Loading...</span>
+                    <button type="button" class="btn-pulse-edit-tab" id="openTabModalBtn" title="Set or switch today's Sheet Tab">✏️</button>
+                  </div>
                 </div>
                 <p class="geo-tracker-subtitle">Active call count & last call timestamp per country (Sheet 1 & 2 Sync Ready)</p>
               </div>
@@ -246,7 +261,17 @@
                 <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Calls Today</span>
                 <span class="total-calls-number" id="totalCallsTodayCount">{{ total_calls_today }}</span>
               </div>
-              <button type="button" class="btn btn-outline btn-sm sync-pulse-btn" id="refreshGeoCallsBtn" title="Sync live call numbers from database / sheets">
+
+              <!-- + Add Country to Live Pulse Button (Circled by user) -->
+              <button type="button" class="btn btn-primary btn-sm" id="openAddGeoBtn" title="Add another country to live pulse tracker">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>+ Add Country</span>
+              </button>
+
+              <button type="button" class="btn btn-outline btn-sm sync-pulse-btn" id="refreshGeoCallsBtn" title="Sync live call numbers from Google Sheets">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <polyline points="23 4 23 10 17 10"></polyline>
                   <polyline points="1 20 1 14 7 14"></polyline>
@@ -260,16 +285,24 @@
           <!-- Horizontal Grid of Country Geo Call Cards -->
           <div class="geo-cards-grid" id="geoCardsGrid">
             {% for geo in geo_stats %}
-            <div class="geo-call-card geo-card-{{ geo.accent }}" data-geo-code="{{ geo.code }}">
+            <div class="geo-call-card geo-card-{{ geo.accent }} {% if geo.is_active %}geo-is-active{% else %}geo-is-paused{% endif %}" data-geo-id="{{ geo.id }}" data-geo-code="{{ geo.code }}">
               <div class="geo-card-top">
                 <div class="geo-badge-flag">
                   <span class="geo-flag-emoji">{{ geo.flag }}</span>
                   <div class="geo-code-info">
-                 
+                    <span class="geo-code-text">{{ geo.code }}</span>
                     <span class="geo-name-text">{{ geo.name }}</span>
                   </div>
                 </div>
-                <span class="geo-active-dot" title="Active campaign country"></span>
+                <div class="flex items-center gap-2">
+                  <div class="geo-status-indicator" title="{% if geo.is_active %}{{ geo.name }} is Active (Running){% else %}{{ geo.name }} is Paused (Stopped){% endif %}">
+                    <span class="geo-status-dot {% if geo.is_active %}dot-active{% else %}dot-paused{% endif %}"></span>
+                    <span class="geo-status-pill-sm {% if geo.is_active %}pill-active{% else %}pill-paused{% endif %}">
+                      {% if geo.is_active %}Active{% else %}Paused{% endif %}
+                    </span>
+                  </div>
+                  <button type="button" class="geo-card-remove-btn" data-remove-geo="{{ geo.id }}" data-remove-code="{{ geo.code }}" title="Remove {{ geo.name }} from live pulse">✕</button>
+                </div>
               </div>
 
               <div class="geo-card-count-row">
@@ -327,8 +360,8 @@
 
             <div class="select-wrapper">
               <select id="sortSelect" class="form-select">
-                <option value="name-asc">Sort: Name (A-Z)</option>
-                <option value="name-desc">Sort: Name (Z-A)</option>
+                <option value="name-asc">Sort: Active First (A-Z)</option>
+                <option value="name-desc">Sort: Active First (Z-A)</option>
                 <option value="clients-desc">Sort: Most Clients</option>
                 <option value="links-desc">Sort: Most Links</option>
               </select>
@@ -414,7 +447,7 @@
         <section class="main-filter-bar">
           <div class="filter-left">
             <h2 class="section-heading">DigitalOcean Account Credentials & Domains</h2>
-            <p class="section-subtext">Click any domain or IP address to copy it instantly to clipboard.</p>
+            <p class="section-subtext">Click any domain to copy it instantly to clipboard.</p>
           </div>
 
           <div class="filter-right">
@@ -493,7 +526,7 @@
         <section class="main-filter-bar">
           <div class="filter-left">
             <h2 class="section-heading">Azure Account Credentials & Domains</h2>
-            <p class="section-subtext">Click any domain or VM IP address to copy it instantly to clipboard.</p>
+            <p class="section-subtext">Click any domain to copy it instantly to clipboard.</p>
           </div>
 
           <div class="filter-right">
@@ -508,6 +541,127 @@
 
         <!-- Azure Accounts Grid -->
         <div class="cloud-cards-grid" id="azureCardsContainer"></div>
+      </div>
+
+      <!-- ===================================================================
+           4. SHEET & COUNTRY SETTINGS VIEW
+           Direct 1-to-1 Mapping: Country Client Campaign -> Sheet Field Name
+           =================================================================== -->
+      <div class="view-panel hidden" id="viewSettingsSection">
+        <section class="main-filter-bar mb-4">
+          <div class="filter-left">
+            <h2 class="section-heading">⚙️ Google Sheets Sync & Client Column Settings</h2>
+            <p class="section-subtext">Map each client campaign to its Google Sheet column (field name). Once set, lock it to fetch real call numbers directly.</p>
+          </div>
+          <div class="filter-right flex items-center gap-2">
+            <button type="button" class="btn btn-outline" id="toggleLockMappingBtn">
+              <span id="lockStatusIcon">🔒</span>
+              <span id="lockStatusText">Mapping Locked</span>
+            </button>
+            <button type="button" class="btn btn-primary" id="saveAllSettingsBtn" title="Save settings and sync dashboard">
+              <span>💾 Save & Sync Dashboard</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Settings Cards Layout -->
+        <div class="settings-grid-layout">
+          <!-- Card 1: Google Sheet Daily Tab Setup -->
+          <div class="settings-card">
+            <div class="settings-card-header">
+              <div class="flex items-center gap-2.5">
+                <span class="text-xl">📑</span>
+                <div>
+                  <h3 class="font-bold text-slate-800 text-sm">Daily Sheet Tab Format (e.g. 25-nov-26)</h3>
+                  <p class="text-xs text-slate-500">Matches the DD-mmm-YY tab format created every morning</p>
+                </div>
+              </div>
+            </div>
+            <div class="settings-card-body">
+              <div class="tab-mode-selector">
+                <label class="tab-mode-option">
+                  <input type="radio" name="tabModeRadio" value="auto" id="tabModeAuto" checked>
+                  <div class="tab-mode-content">
+                    <span class="font-bold text-xs text-slate-800">🟢 Smart Today's Date Tab (Automatic) — Recommended</span>
+                    <span class="text-[11px] text-slate-500">Automatically tracks today's date formatted as <code>DD-mmm-YY</code> (e.g. <strong class="text-blue-600" id="todayTabNamePreview">25-nov-26</strong>) without needing manual changes.</span>
+                  </div>
+                </label>
+                <label class="tab-mode-option">
+                  <input type="radio" name="tabModeRadio" value="custom" id="tabModeCustom">
+                  <div class="tab-mode-content">
+                    <span class="font-bold text-xs text-slate-800">🔵 Specific Past Tab Override</span>
+                    <span class="text-[11px] text-slate-500">Select or type a past tab name (e.g. 24-nov-26, 23-nov-26) to view previous calls.</span>
+                  </div>
+                </label>
+              </div>
+
+              <div class="custom-tab-inputs-box hidden" id="customTabInputsBox">
+                <div class="form-group mb-2">
+                  <label class="text-xs font-semibold text-slate-700">Select or Enter Tab Name</label>
+                  <div class="flex gap-2">
+                    <input type="text" id="settingSheet1TabInput" class="form-control" placeholder="e.g. 25-nov-26">
+                    <select id="settingSheet1TabSelect" class="form-control w-44 text-xs">
+                      <option value="">Recent Tabs...</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Live Active Tab Summary Banner -->
+              <div class="active-tabs-summary-banner mt-4 p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs flex flex-col gap-1.5">
+                <div class="flex items-center justify-between font-bold text-blue-900">
+                  <span>Current Active Tab:</span>
+                  <span class="text-[10px] uppercase font-extrabold px-2 py-0.5 bg-blue-200/70 text-blue-800 rounded-full" id="settingsActiveTabModeBadge">25-nov-26 (AUTO)</span>
+                </div>
+                <div class="text-[11px] text-slate-600 font-mono" id="settingsActiveTabsList">
+                  <span>• Active in Sheet 1 & Sheet 2: <strong>25-nov-26</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Simple 1-to-1 Client Campaign Mapping Table -->
+          <div class="settings-card flex-1">
+            <div class="settings-card-header flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="text-xl">🗂️</span>
+                <div>
+                  <h3 class="font-bold text-slate-800 text-sm">Client Campaign ↔ Sheet Column Mapping</h3>
+                  <p class="text-xs text-slate-500">Direct 1-to-1 mapping: select which sheet field matches each client</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="lock-indicator-badge locked" id="mappingLockBadge">🔒 Locked</span>
+                <button type="button" class="btn btn-outline btn-xs" id="reloadSheetColumnsBtn" title="Refresh sheet headers">
+                  🔄 Refresh
+                </button>
+              </div>
+            </div>
+            <div class="settings-card-body p-0">
+              <div class="text-[11px] text-slate-600 bg-slate-50 p-3 border-b border-slate-200 flex items-start gap-2">
+                <span class="text-emerald-600 font-bold">✓</span>
+                <span>Each country/client campaign on the dashboard maps to <strong>one exact Google Sheet column</strong>. Once mapped, lock it so the server fetches total calls for that client cleanly without merging different clients.</span>
+              </div>
+
+              <!-- Clean 1-to-1 Mapping Table -->
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse" id="simpleMappingTable">
+                  <thead>
+                    <tr class="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                      <th class="py-2.5 px-4">Dashboard Campaign & Client</th>
+                      <th class="py-2.5 px-3">Status</th>
+                      <th class="py-2.5 px-3">Mapped Sheet Field</th>
+                      <th class="py-2.5 px-4 text-right">Today's Calls</th>
+                    </tr>
+                  </thead>
+                  <tbody id="simpleMappingTableBody" class="divide-y divide-slate-100">
+                    <!-- Populated dynamically by app.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
     </main>
@@ -723,6 +877,18 @@
         </div>
       </div>
 
+      <!-- Account Username & Password -->
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="form-group">
+          <label for="cloudUsernameInput">👤 Account Username</label>
+          <input type="text" id="cloudUsernameInput" class="form-control font-mono text-xs" placeholder="e.g. admin_ops or root" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="cloudPasswordInput">🔑 Account Password</label>
+          <input type="text" id="cloudPasswordInput" class="form-control font-mono text-xs" placeholder="e.g. P@ssw0rd!2026" autocomplete="off">
+        </div>
+      </div>
+
       <!-- Purchase Date & Expiry Date -->
       <div class="grid grid-cols-2 gap-3 mb-3">
         <div class="form-group">
@@ -735,22 +901,35 @@
         </div>
       </div>
 
-      <!-- Domains Used -->
-      <div class="form-group mb-3">
+      <!-- Domains Used (DigitalOcean & others) -->
+      <div class="form-group" id="cloudDomainsGroup">
         <label for="cloudDomainsInput">🌐 Domains Used in This Account</label>
         <textarea id="cloudDomainsInput" class="form-control font-mono text-xs" rows="3" placeholder="Enter domains separated by comma or new line (e.g. leaddeal-eu.com, offerproxy-de.net, fastleads-de.io)"></textarea>
         <span class="text-[11px] text-slate-500 mt-1 block">Specify domains currently assigned to or routed through this account.</span>
       </div>
 
-      <!-- Server Droplet / VM IPs -->
-      <div class="form-group mb-3">
-        <label for="cloudIpsInput">🖥️ Server Droplet / VM IP Addresses</label>
-        <input type="text" id="cloudIpsInput" class="form-control font-mono text-xs" placeholder="e.g. 165.227.102.44, 159.89.230.12">
-      </div>
+      <!-- Azure Specific Details (Endpoint Name, Bill Amount, Credit Card Used) -->
+      <div id="cloudAzureSpecificGroup" class="hidden">
+        <!-- Endpoint Name Field -->
+        <div class="form-group mb-3">
+          <label for="cloudEndpointNameInput">🔗 Azure Endpoint Name <span class="required">*</span></label>
+          <input type="text" id="cloudEndpointNameInput" class="form-control font-mono text-xs" placeholder="e.g. sxsdertvbeka6aq.z03.azurefd.net or azure-gateway-uk.com" autocomplete="off">
+          <span class="text-[11px] text-slate-500 mt-1 block">Configured Azure Front Door, Blob, or VM endpoint host.</span>
+        </div>
 
-      <div class="form-group">
-        <label for="cloudNotesInput">Notes / Billing Details</label>
-        <textarea id="cloudNotesInput" class="form-control" rows="2" placeholder="e.g. High-memory droplets, monthly renewal on 15th"></textarea>
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Bill Amount Field -->
+          <div class="form-group">
+            <label for="cloudBillAmountInput">💵 Monthly Bill Amount</label>
+            <input type="text" id="cloudBillAmountInput" class="form-control" placeholder="e.g. $185.00/mo or $240.00" autocomplete="off">
+          </div>
+
+          <!-- Which Credit Card Used -->
+          <div class="form-group">
+            <label for="cloudCreditCardInput">💳 Credit Card Used</label>
+            <input type="text" id="cloudCreditCardInput" class="form-control" placeholder="e.g. Visa •••• 4242 or Corporate Amex" autocomplete="off">
+          </div>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -760,9 +939,107 @@
   </form>
 </div>
 
+<!-- Add Country to Live Pulse Modal -->
+<div class="modal" id="addGeoModal" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div class="modal-title-wrap">
+      <span class="modal-icon-badge">🌍</span>
+      <div>
+        <h3 id="addGeoModalTitle">Add Country to Live Activity Pulse</h3>
+        <p class="modal-subtitle">Track calls and activity from Google Sheets for any country</p>
+      </div>
+    </div>
+    <button class="modal-close-btn" data-close-modal="addGeoModal">×</button>
+  </div>
+  <form id="addGeoForm">
+    <div class="modal-body">
+      <!-- Quick pick from available sheet geos -->
+      <div class="form-group mb-3">
+        <label class="block text-xs font-bold text-slate-600 mb-2">Available Countries from Sheets:</label>
+        <div class="flex flex-wrap gap-1.5" id="availableGeosQuickPicker">
+          <!-- Populated dynamically by JS -->
+          <button type="button" class="btn btn-outline btn-xs geo-pick-chip" data-pick-code="IT" data-pick-name="Italy">🇮🇹 IT Italy</button>
+          <button type="button" class="btn btn-outline btn-xs geo-pick-chip" data-pick-code="CH" data-pick-name="Switzerland">🇨🇭 CH Switzerland</button>
+          <button type="button" class="btn btn-outline btn-xs geo-pick-chip" data-pick-code="BE" data-pick-name="Belgium">🇧🇪 BE Belgium</button>
+          <button type="button" class="btn btn-outline btn-xs geo-pick-chip" data-pick-code="MS" data-pick-name="Malaysia">🇲🇾 MS Malaysia</button>
+          <button type="button" class="btn btn-outline btn-xs geo-pick-chip" data-pick-code="FR" data-pick-name="France">🇫🇷 FR France</button>
+          <button type="button" class="btn btn-outline btn-xs geo-pick-chip" data-pick-code="ES" data-pick-name="Spain">🇪🇸 ES Spain</button>
+          <button type="button" class="btn btn-outline btn-xs geo-pick-chip" data-pick-code="CA" data-pick-name="Canada">🇨🇦 CA Canada</button>
+          <button type="button" class="btn btn-outline btn-xs geo-pick-chip" data-pick-code="AU" data-pick-name="Australia">🇦🇺 AU Australia</button>
+        </div>
+      </div>
+
+      <div class="form-group mb-3">
+        <label for="customGeoCodeInput">Country Code / Geo Prefix <span class="required">*</span></label>
+        <input type="text" id="customGeoCodeInput" class="form-control uppercase" placeholder="e.g. IT, CH, BE, MS, ES, FR" maxlength="5" required autocomplete="off">
+        <span class="text-[11px] text-slate-500 mt-1 block">Matches column headers in the Google Sheet (e.g. "IT pulkit", "BE ARUN", "de anshu").</span>
+      </div>
+
+      <div class="form-group">
+        <label for="customGeoNameInput">Country Name (Optional)</label>
+        <input type="text" id="customGeoNameInput" class="form-control" placeholder="e.g. Italy, Switzerland, Belgium" autocomplete="off">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close-modal="addGeoModal">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="saveGeoBtn">+ Add to Live Pulse</button>
+    </div>
+  </form>
+</div>
+
+<!-- Quick Set Sheet Tab Modal (Triggered by 'tab' button in pulse header) -->
+<div class="modal" id="sheetTabModal" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div class="modal-title-wrap">
+      <span class="modal-icon-badge">📑</span>
+      <h3>Set Today's Google Sheet Tab</h3>
+    </div>
+    <button class="modal-close-btn" data-close-modal="sheetTabModal">×</button>
+  </div>
+  <form id="quickTabForm">
+    <div class="modal-body">
+      <p class="text-xs text-slate-500 mb-3">
+        Every day your team creates a new tab in Sheet 1 and Sheet 2. Choose whether to auto-track the latest tab or specify today's tab name.
+      </p>
+
+      <div class="tab-mode-selector mb-3">
+        <label class="tab-mode-option">
+          <input type="radio" name="quickTabModeRadio" value="auto" id="quickTabModeAuto" checked>
+          <div class="tab-mode-content">
+            <span class="font-bold text-xs text-slate-800">🟢 Auto-Track Latest Tab (Recommended)</span>
+            <span class="text-[11px] text-slate-500">Always reads from the last tab created today</span>
+          </div>
+        </label>
+        <label class="tab-mode-option">
+          <input type="radio" name="quickTabModeRadio" value="custom" id="quickTabModeCustom">
+          <div class="tab-mode-content">
+            <span class="font-bold text-xs text-slate-800">🔵 Specific Tab Name</span>
+            <span class="text-[11px] text-slate-500">Enter or select the tab name for today (e.g. Nov 24, Nov 24-30)</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="quick-custom-tab-inputs hidden" id="quickCustomTabInputs">
+        <div class="form-group mb-2">
+          <label class="text-xs font-semibold text-slate-700">Sheet 1 Tab Name (daily calls)</label>
+          <input type="text" id="quickSheet1TabInput" class="form-control" placeholder="e.g. Nov 24">
+        </div>
+        <div class="form-group mb-2">
+          <label class="text-xs font-semibold text-slate-700">Sheet 2 Tab Name (new1)</label>
+          <input type="text" id="quickSheet2TabInput" class="form-control" placeholder="e.g. Nov 24-30">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" data-close-modal="sheetTabModal">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="saveQuickTabBtn">Apply & Sync Tab</button>
+    </div>
+  </form>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{% static 'js/app.js' %}?v=5.0"></script>
+<script src="{% static 'js/app.js' %}?v=22.0"></script>
 {% endblock %}

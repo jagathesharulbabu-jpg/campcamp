@@ -24,7 +24,7 @@ class Command(BaseCommand):
         if created:
             admin_user.set_password('admin123')
             admin_user.save()
-            self.stdout.write(self.style.SUCCESS("✓ Created Admin user: admin / admin123"))
+            self.stdout.write(self.style.SUCCESS("[OK] Created Admin user: admin / admin123"))
         else:
             self.stdout.write("Admin user already exists.")
 
@@ -42,37 +42,37 @@ class Command(BaseCommand):
         if created:
             emp_user.set_password('emp123')
             emp_user.save()
-            self.stdout.write(self.style.SUCCESS("✓ Created Employee user: employee / emp123"))
+            self.stdout.write(self.style.SUCCESS("[OK] Created Employee user: employee / emp123"))
         else:
             self.stdout.write("Employee user already exists.")
 
-        # 3. Create Sample Campaigns & Clients
-        campaigns_data = [
-            {'name': 'DE — Pulkit', 'flag': '🇩🇪', 'status': 'ACTIVE', 'client': 'Pulkit', 'contact': 'pulkit@leads.de', 'url': 'https://leads.de/campaign-1', 'mobile': '+49 152 3456789'},
-            {'name': 'DE — Anshu', 'flag': '🇩🇪', 'status': 'ACTIVE', 'client': 'Anshu', 'contact': 'anshu@leads.de', 'url': 'https://leads.de/ecom-v2', 'mobile': '+49 171 9876543'},
-            {'name': 'AT — Pulkit', 'flag': '🇦🇹', 'status': 'ACTIVE', 'client': 'Pulkit', 'contact': 'pulkit@leads.at', 'url': 'https://leads.at/austria-quote', 'mobile': '+43 660 1234567'},
-            {'name': 'UK — Maxy', 'flag': '🇬🇧', 'status': 'ACTIVE', 'client': 'Maxy', 'contact': 'maxy@leads.uk', 'url': 'https://leads.uk/quotes-v1', 'mobile': '0330-223-2128, +44 7911 123456'},
-            {'name': 'UK — MJ', 'flag': '🇬🇧', 'status': 'PAUSED', 'client': 'MJ', 'contact': 'mj@leads.uk', 'url': 'https://leads.uk/fleet-leads', 'mobile': '+44 7700 900077'},
-            {'name': 'USA — Maxy', 'flag': '🇺🇸', 'status': 'PAUSED', 'client': 'Maxy', 'contact': 'maxy@leads.us', 'url': 'https://leads.us/biz-loans', 'mobile': '+1 (555) 876-5432'},
-        ]
+        # 3. Create Sample Campaigns & Clients (Only if database is empty)
+        if Country.objects.exists():
+            self.stdout.write("Country campaigns already exist. Skipping sample campaigns seed.")
+        else:
+            campaigns_data = [
+                {'name': 'German', 'flag': 'DE', 'status': 'ACTIVE', 'client': 'Pulkit', 'contact': '030-1663-7079', 'url': '', 'mobile': '030-1663-7079'},
+                {'name': 'Germany', 'flag': 'DE', 'status': 'PAUSED', 'client': 'Anshu', 'contact': '491719876543', 'url': '', 'mobile': ''},
+                {'name': 'Austria', 'flag': 'AT', 'status': 'PAUSED', 'client': 'Pulkit', 'contact': '3456789', 'url': '', 'mobile': '3456789'},
+                {'name': 'America', 'flag': 'US', 'status': 'PAUSED', 'client': 'MJ', 'contact': '34456677', 'url': '', 'mobile': '34456677'},
+                {'name': 'Unitedkindom', 'flag': 'UK', 'status': 'PAUSED', 'client': 'MJ', 'contact': '0330-223-2128', 'url': '', 'mobile': '0330-223-2128'},
+                {'name': 'Italy', 'flag': 'IT', 'status': 'PAUSED', 'client': 'PULKIT', 'contact': '390746200771', 'url': '', 'mobile': '390746200771'},
+            ]
 
-        for item in campaigns_data:
-            country, _ = Country.objects.get_or_create(
-                name=item['name'],
-                defaults={'flag_emoji': item['flag'], 'status': item['status']}
-            )
-            client, _ = Client.objects.get_or_create(
-                country=country,
-                name=item['client'],
-                defaults={'contact': item['contact']}
-            )
-            PopupLink.objects.get_or_create(
-                client=client,
-                url=item['url'],
-                defaults={'mobile_numbers': item['mobile'], 'inserted_at': timezone.now(), 'created_by': admin_user}
-            )
+            for item in campaigns_data:
+                country = Country.objects.create(
+                    name=item['name'],
+                    flag_emoji=item['flag'],
+                    status=item['status']
+                )
+                client = Client.objects.create(
+                    country=country,
+                    name=item['client'],
+                    contact=item['contact'],
+                    mobile_number=item['mobile']
+                )
 
-        self.stdout.write(self.style.SUCCESS("[OK] Seeded Country Campaigns and Popup Links"))
+            self.stdout.write(self.style.SUCCESS("[OK] Seeded Country Campaigns and Popup Links"))
 
         # 4. Create Sample Cloud Infrastructure Accounts (DigitalOcean & Azure)
         import datetime

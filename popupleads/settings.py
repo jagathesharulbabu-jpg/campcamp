@@ -6,9 +6,33 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-popupleads-hub-production-key-change-in-prod-!#99$')
 
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1')
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    'popupleads.onrender.com',
+    '.onrender.com',
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    '*',
+]
+
+# CSRF Trusted Origins for Render HTTPS
+CSRF_TRUSTED_ORIGINS = [
+    'https://popupleads.onrender.com',
+    'https://*.onrender.com',
+    'http://localhost:8000',
+    'http://localhost:8080',
+    'http://127.0.0.1:8000',
+    'http://127.0.0.1:8080',
+]
+
+IS_ON_RENDER = bool(os.environ.get('RENDER') or os.environ.get('DATABASE_URL'))
+
+if IS_ON_RENDER:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # Application definition
 INSTALLED_APPS = [
@@ -30,7 +54,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -38,6 +61,13 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Only activate WhiteNoise if installed (in production on Render); runs cleanly without it locally
+try:
+    import whitenoise
+    MIDDLEWARE.insert(2, 'whitenoise.middleware.WhiteNoiseMiddleware')
+except ImportError:
+    pass
 
 ROOT_URLCONF = 'popupleads.urls'
 
@@ -105,6 +135,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Authentication URLs
 LOGIN_URL = '/login/'

@@ -1,0 +1,13 @@
+{
+  "tab_mode": "auto",
+  "today_tab": "25-nov",
+  "sheet1_tab_override": "25-nov",
+  "sheet2_tab_override": "25-nov",
+  "is_locked": true,
+  "client_mappings": {
+    "8": "DE pulkit",
+    "9": "IT pulkit",
+    "10": "CH pulkit",
+    "11": "AT pulkit"
+  }
+}

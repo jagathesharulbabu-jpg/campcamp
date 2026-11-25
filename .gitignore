@@ -1,0 +1,27 @@
+# Python
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+evenv/
+.venv/
+env/
+venv/
+ENV/
+
+# Database & local secrets
+*.sqlite3
+.env
+
+# Static collection
+staticfiles/
+
+# Antigravity / IDE artifacts
+.gemini/
+.idea/
+.vscode/
+*.log

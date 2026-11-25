@@ -1,0 +1,1 @@
+web: gunicorn popupleads.wsgi:application

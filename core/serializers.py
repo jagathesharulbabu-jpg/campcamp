@@ -32,14 +32,33 @@ class CountrySerializer(serializers.ModelSerializer):
     latest_update_relative = serializers.SerializerMethodField()
     active_mobile_number = serializers.SerializerMethodField()
     primary_client_id = serializers.SerializerMethodField()
+    calls_count = serializers.SerializerMethodField()
+    mapped_field = serializers.SerializerMethodField()
 
     class Meta:
         model = Country
         fields = [
             'id', 'name', 'flag_emoji', 'status', 'clients', 'total_clients',
             'latest_update_time', 'latest_update_relative', 'active_mobile_number',
-            'primary_client_id', 'created_at', 'updated_at'
+            'primary_client_id', 'calls_count', 'mapped_field', 'created_at', 'updated_at'
         ]
+        extra_kwargs = {
+            'name': {'validators': []}
+        }
+
+    def get_mapped_field(self, obj):
+        from .sheet_sync import get_sheet_settings
+        settings = get_sheet_settings()
+        client_mappings = settings.get('client_mappings', {})
+        return client_mappings.get(str(obj.id), '')
+
+    def get_calls_count(self, obj):
+        from .sheet_sync import get_column_call_counts
+        col_counts = get_column_call_counts()
+        field = self.get_mapped_field(obj)
+        if field and field in col_counts:
+            return col_counts[field]
+        return 0
 
     def _get_latest_link(self, obj):
         return PopupLink.objects.filter(client__country=obj).order_by('-inserted_at').first()
@@ -106,6 +125,11 @@ class CloudAccountSerializer(serializers.ModelSerializer):
     is_expired = serializers.SerializerMethodField()
     provider_display = serializers.CharField(source='get_provider_display', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    endpoint_name = serializers.CharField(required=False, allow_blank=True, default='')
+    bill_amount = serializers.CharField(required=False, allow_blank=True, default='')
+    credit_card_used = serializers.CharField(required=False, allow_blank=True, default='')
+    login_username = serializers.CharField(required=False, allow_blank=True, default='')
+    login_password = serializers.CharField(required=False, allow_blank=True, default='')
 
     class Meta:
         model = CloudAccount
@@ -113,8 +137,45 @@ class CloudAccountSerializer(serializers.ModelSerializer):
             'id', 'provider', 'provider_display', 'account_name', 'account_email',
             'account_id', 'api_token', 'server_ips', 'notes', 'status', 'status_display',
             'purchased_at', 'expires_at', 'domains_used', 'domains_list', 'is_expired',
+            'endpoint_name', 'bill_amount', 'credit_card_used',
+            'login_username', 'login_password',
             'created_at', 'updated_at'
         ]
+
+    def create(self, validated_data):
+        endpoint_name = validated_data.pop('endpoint_name', '')
+        bill_amount = validated_data.pop('bill_amount', '')
+        credit_card_used = validated_data.pop('credit_card_used', '')
+        login_username = validated_data.pop('login_username', '')
+        login_password = validated_data.pop('login_password', '')
+        instance = super().create(validated_data)
+        if endpoint_name:
+            instance.endpoint_name = endpoint_name
+        if bill_amount:
+            instance.bill_amount = bill_amount
+        if credit_card_used:
+            instance.credit_card_used = credit_card_used
+        if login_username:
+            instance.login_username = login_username
+        if login_password:
+            instance.login_password = login_password
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        if 'endpoint_name' in validated_data:
+            instance.endpoint_name = validated_data.pop('endpoint_name')
+        if 'bill_amount' in validated_data:
+            instance.bill_amount = validated_data.pop('bill_amount')
+        if 'credit_card_used' in validated_data:
+            instance.credit_card_used = validated_data.pop('credit_card_used')
+        if 'login_username' in validated_data:
+            instance.login_username = validated_data.pop('login_username')
+        if 'login_password' in validated_data:
+            instance.login_password = validated_data.pop('login_password')
+        instance = super().update(instance, validated_data)
+        instance.save()
+        return instance
 
     def get_domains_list(self, obj):
         if not obj.domains_used:

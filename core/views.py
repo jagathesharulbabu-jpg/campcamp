@@ -12,6 +12,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import User, Country, Client, PopupLink, CallLog, CloudAccount, DailyActivity
+from .sheet_sync import sync_today_calls_from_sheets
 from .serializers import (
     UserSerializer, CountrySerializer, ClientSerializer,
     PopupLinkSerializer, CallLogSerializer, CloudAccountSerializer,
@@ -57,83 +58,100 @@ def user_logout(request):
     return redirect('home')
 
 
-def get_geo_call_stats():
+def get_geo_call_stats(force=False, quick=False):
     """
-    Computes active call counts and latest call timestamp for each Geo (DE, AT, UK, US, etc.)
-    Syncs with CallLog model and Google Sheets schema for real-time live pulse.
+    Computes individual client call counts and status per country campaign
+    directly mapped to Google Sheet fields.
     """
     now = timezone.now()
-    
-    # Baseline Geo configurations (matched to campaigns & Google Sheets)
-    base_geos = [
-        {'code': 'DE', 'name': 'Germany', 'flag': '🇩🇪', 'calls': 22, 'mins_ago': 2, 'accent': 'emerald'},
-        {'code': 'AT', 'name': 'Austria', 'flag': '🇦🇹', 'calls': 14, 'mins_ago': 6, 'accent': 'blue'},
-        {'code': 'UK', 'name': 'United Kingdom', 'flag': '🇬🇧', 'calls': 31, 'mins_ago': 11, 'accent': 'indigo'},
-        {'code': 'US', 'name': 'United States', 'flag': '🇺🇸', 'calls': 20, 'mins_ago': 15, 'accent': 'teal'},
-        {'code': 'UAE', 'name': 'UAE', 'flag': '🇦🇪', 'calls': 9, 'mins_ago': 28, 'accent': 'amber'},
-    ]
-
     today = now.date()
     db_logs = CallLog.objects.filter(call_time__date=today).order_by('-call_time')
+    all_countries = list(Country.objects.prefetch_related('clients').all())
 
+    sheet_summary = sync_today_calls_from_sheets(force=force, quick=quick)
+    sheet_connected = sheet_summary.get('sheet_connected', False)
+    tab_mode = sheet_summary.get('tab_mode', 'auto')
+    active_tab_name = sheet_summary.get('active_tab_name', '25-nov-26')
+    recent_tabs = sheet_summary.get('recent_tabs', [])
+    available_columns = sheet_summary.get('available_columns', [])
+    column_call_counts = sheet_summary.get('column_call_counts', {})
+    client_mappings = sheet_summary.get('client_mappings', {})
+    is_locked = sheet_summary.get('is_locked', True)
+
+    all_geos_data = {}
     geo_list = []
-    total_calls_today = 0
 
-    for item in base_geos:
-        code = item['code']
-        geo_db_calls = db_logs.filter(
-            Q(geo_code__iexact=code) |
-            Q(country__name__icontains=code) |
-            Q(client__country__name__icontains=code)
-        )
-        count = item['calls']
-        db_count = geo_db_calls.count()
-        if db_count > 0:
-            count = max(count, db_count)
+    for country in all_countries:
+        cid_str = str(country.id)
+        field_name = client_mappings.get(cid_str, '')
+        client = country.clients.first()
+        client_name = client.name if client else ''
 
-        latest_call = geo_db_calls.first()
-        if latest_call:
-            delta = now - latest_call.call_time
-            mins = max(1, int(delta.total_seconds() // 60))
-            time_str = latest_call.call_time.strftime('%H:%M')
-            if mins < 1:
-                last_call_display = f"Just now ({time_str})"
-            elif mins < 60:
-                last_call_display = f"{mins}m ago ({time_str})"
-            else:
-                last_call_display = f"{mins // 60}h {mins % 60}m ago"
-        else:
-            simulated_time = (now - timezone.timedelta(minutes=item['mins_ago'])).strftime('%H:%M')
-            last_call_display = f"{item['mins_ago']}m ago ({simulated_time})"
+        # Direct individual calls for this client from sheet
+        calls = column_call_counts.get(field_name, 0) if field_name else 0
+        is_active = (country.status == Country.Status.ACTIVE)
+        geo_status = 'ACTIVE' if is_active else 'PAUSED'
 
-        total_calls_today += count
+        code = (country.flag_emoji if len(country.flag_emoji) <= 4 else country.name[:2]).upper()
+        display_label = f"{country.name} - {client_name}" if client_name else country.name
 
-        geo_list.append({
+        geo_item = {
+            'id': country.id,
             'code': code,
-            'name': item['name'],
-            'flag': item['flag'],
-            'calls_count': count,
-            'last_call_time': last_call_display,
-            'accent': item['accent'],
-        })
+            'name': display_label,
+            'country_name': country.name,
+            'client_name': client_name,
+            'flag': country.flag_emoji or '🌍',
+            'calls_count': calls,
+            'mapped_field': field_name,
+            'last_call_time': "Today's report",
+            'accent': 'emerald' if is_active else 'blue',
+            'status': geo_status,
+            'is_active': is_active,
+        }
+        all_geos_data[str(country.id)] = geo_item
+        all_geos_data[code] = geo_item
+        geo_list.append(geo_item)
 
-    return geo_list, total_calls_today
+    # Sort: active first, then by calls count
+    geo_list.sort(key=lambda x: (0 if x['is_active'] else 1, -x['calls_count']))
+    total_calls_today = sum(g['calls_count'] for g in geo_list)
+
+    last_tabs = {
+        'sheet1': {'name': active_tab_name, 'gid': '0'},
+        'sheet2': {'name': active_tab_name, 'gid': '0'},
+    }
+
+    return (
+        geo_list, total_calls_today, sheet_connected, last_tabs,
+        all_geos_data, geo_list, tab_mode, recent_tabs,
+        available_columns, column_call_counts, client_mappings, is_locked, active_tab_name
+    )
 
 
 @login_required
 def dashboard(request):
-    countries = Country.objects.prefetch_related('clients__links').all()
+    from django.db.models import Case, When, Value, IntegerField
+    countries = Country.objects.prefetch_related('clients__links').annotate(
+        status_rank=Case(
+            When(status=Country.Status.ACTIVE, then=Value(0)),
+            When(status=Country.Status.PAUSED, then=Value(1)),
+            default=Value(2),
+            output_field=IntegerField()
+        )
+    ).order_by('status_rank', 'name')
     
-    # Calculate Metrics for Country Campaigns
     active_countries = countries.filter(status=Country.Status.ACTIVE).count()
     paused_countries = countries.filter(status=Country.Status.PAUSED).count()
     total_clients = Client.objects.count()
     total_links = PopupLink.objects.count()
 
-    # Live Geo Calls & Pulse Stats (DE 22, AT 14, UK 31, US 20...)
-    geo_stats, total_calls_today = get_geo_call_stats()
+    (
+        geo_stats, total_calls_today, sheet_connected, last_tabs,
+        all_geos_data, available_geos, tab_mode, recent_tabs,
+        available_columns, column_call_counts, client_mappings, is_locked, active_tab_name
+    ) = get_geo_call_stats(quick=True)
 
-    # Cloud Accounts for DigitalOcean and Azure
     cloud_accounts = CloudAccount.objects.all()
     do_accounts = cloud_accounts.filter(provider=CloudAccount.Provider.DIGITALOCEAN)
     azure_accounts = cloud_accounts.filter(provider=CloudAccount.Provider.AZURE)
@@ -154,6 +172,16 @@ def dashboard(request):
         'total_links': total_links,
         'geo_stats': geo_stats,
         'total_calls_today': total_calls_today,
+        'sheet_connected': sheet_connected,
+        'last_tabs': last_tabs,
+        'active_tab_name': active_tab_name,
+        'recent_tabs': recent_tabs,
+        'tab_mode': tab_mode,
+        'available_columns': available_columns,
+        'column_call_counts': column_call_counts,
+        'client_mappings': client_mappings,
+        'is_locked': is_locked,
+        'available_geos': available_geos,
         'cloud_accounts': cloud_accounts,
         'do_accounts': do_accounts,
         'azure_accounts': azure_accounts,
@@ -170,13 +198,68 @@ def dashboard(request):
 
 @login_required
 def geo_calls_api(request):
-    """API endpoint returning live geo calls and last call time."""
-    geo_stats, total_calls_today = get_geo_call_stats()
+    """API endpoint returning live client calls and sheet sync stats."""
+    force = request.GET.get('force') in ('true', '1')
+    (
+        geo_stats, total_calls_today, sheet_connected, last_tabs,
+        all_geos_data, available_geos, tab_mode, recent_tabs,
+        available_columns, column_call_counts, client_mappings, is_locked, active_tab_name
+    ) = get_geo_call_stats(force=force)
     return JsonResponse({
         'status': 'SUCCESS',
         'total_calls_today': total_calls_today,
         'geos': geo_stats,
+        'all_geos_data': all_geos_data,
+        'available_geos': available_geos,
+        'sheet_connected': sheet_connected,
+        'last_tabs': last_tabs,
+        'active_tab_name': active_tab_name,
+        'recent_tabs': recent_tabs,
+        'tab_mode': tab_mode,
+        'available_columns': available_columns,
+        'column_call_counts': column_call_counts,
+        'client_mappings': client_mappings,
+        'is_locked': is_locked,
         'timestamp': timezone.now().isoformat()
+    })
+
+
+@login_required
+def sheet_settings_api(request):
+    """
+    GET: Returns sheet tab settings, detected tabs, available columns with counts, and client mappings.
+    POST: Updates tab mode, custom tab names, is_locked, and client field mappings.
+    """
+    from .sheet_sync import get_sheet_settings, save_sheet_settings, sync_today_calls_from_sheets
+    import json
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+        except Exception:
+            data = request.POST.dict()
+
+        allowed_keys = ['tab_mode', 'sheet1_tab_override', 'sheet2_tab_override', 'client_mappings', 'is_locked']
+        payload = {k: data[k] for k in allowed_keys if k in data}
+        success = save_sheet_settings(payload)
+        sync_today_calls_from_sheets(force=True)
+        return JsonResponse({'status': 'SUCCESS' if success else 'ERROR'})
+
+    # GET request
+    summary = sync_today_calls_from_sheets(force=False)
+    settings_data = get_sheet_settings()
+    return JsonResponse({
+        'status': 'SUCCESS',
+        'settings': settings_data,
+        'tab_mode': settings_data.get('tab_mode', 'auto'),
+        'active_tab_name': summary.get('active_tab_name', '25-nov-26'),
+        'today_tab': summary.get('today_tab', '25-nov-26'),
+        'recent_tabs': summary.get('recent_tabs', []),
+        'available_columns': summary.get('available_columns', []),
+        'column_call_counts': summary.get('column_call_counts', {}),
+        'client_mappings': settings_data.get('client_mappings', {}),
+        'is_locked': settings_data.get('is_locked', True),
+        'sheet_connected': summary.get('sheet_connected', False)
     })
 
 
@@ -263,6 +346,17 @@ class CountryViewSet(viewsets.ModelViewSet):
     queryset = Country.objects.prefetch_related('clients__links').all()
     serializer_class = CountrySerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        from django.db.models import Case, When, Value, IntegerField
+        return Country.objects.prefetch_related('clients__links').annotate(
+            status_rank=Case(
+                When(status=Country.Status.ACTIVE, then=Value(0)),
+                When(status=Country.Status.PAUSED, then=Value(1)),
+                default=Value(2),
+                output_field=IntegerField()
+            )
+        ).order_by('status_rank', 'name')
 
     @action(detail=True, methods=['post'])
     def toggle_status(self, request, pk=None):

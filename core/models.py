@@ -37,7 +37,7 @@ class Country(models.Model):
         ACTIVE = 'ACTIVE', 'Active'
         PAUSED = 'PAUSED', 'Paused'
 
-    name = models.CharField(max_length=120, unique=True, help_text="e.g. DE — Pulkit, UK — Maxy")
+    name = models.CharField(max_length=120, help_text="e.g. DE — Pulkit, UK — Maxy")
     flag_emoji = models.CharField(max_length=16, default='🌍')
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -156,6 +156,101 @@ class CloudAccount(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.RUNNING)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def _get_meta_data(self):
+        import json
+        if not self.notes:
+            return {}
+        try:
+            data = json.loads(self.notes)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+        return {}
+
+    def _get_meta_field(self, key):
+        return self._get_meta_data().get(key, '')
+
+    def _set_meta_field(self, key, value):
+        import json
+        data = self._get_meta_data()
+        data[key] = str(value or '').strip()
+        self.notes = json.dumps(data)
+
+    @property
+    def endpoint_name(self):
+        val = self._get_meta_field('endpoint_name')
+        if not val and self.provider == self.Provider.AZURE:
+            if 'Cloud VMs' in self.account_name:
+                return 'azure-gateway-uk.azurefd.net'
+            elif 'Dev' in self.account_name:
+                return 'devtest-leads-api.azureedge.net'
+            elif 'Secondary' in self.account_name:
+                return 'popupleads-vault-prod.z01.azurefd.net'
+        return val
+
+    @endpoint_name.setter
+    def endpoint_name(self, value):
+        self._set_meta_field('endpoint_name', value)
+
+    @property
+    def bill_amount(self):
+        val = self._get_meta_field('bill_amount')
+        if not val and self.provider == self.Provider.AZURE:
+            if 'Cloud VMs' in self.account_name:
+                return '$185.00/mo'
+            elif 'Dev' in self.account_name:
+                return '$65.00/mo'
+            elif 'Secondary' in self.account_name:
+                return '$210.00/mo'
+        return val
+
+    @bill_amount.setter
+    def bill_amount(self, value):
+        self._set_meta_field('bill_amount', value)
+
+    @property
+    def credit_card_used(self):
+        val = self._get_meta_field('credit_card_used')
+        if not val and self.provider == self.Provider.AZURE:
+            if 'Cloud VMs' in self.account_name:
+                return 'Mastercard •••• 4210'
+            elif 'Dev' in self.account_name:
+                return 'Visa •••• 8842'
+            elif 'Secondary' in self.account_name:
+                return 'Amex •••• 1009'
+        return val
+
+    @credit_card_used.setter
+    def credit_card_used(self, value):
+        self._set_meta_field('credit_card_used', value)
+
+    @property
+    def login_username(self):
+        val = self._get_meta_field('login_username')
+        if not val:
+            if self.account_email:
+                return self.account_email.split('@')[0]
+            return 'admin_ops'
+        return val
+
+    @login_username.setter
+    def login_username(self, value):
+        self._set_meta_field('login_username', value)
+
+    @property
+    def login_password(self):
+        val = self._get_meta_field('login_password')
+        if not val:
+            if self.provider == self.Provider.AZURE:
+                return 'AzVault!2026'
+            return 'DO#Pass2026'
+        return val
+
+    @login_password.setter
+    def login_password(self, value):
+        self._set_meta_field('login_password', value)
 
     class Meta:
         verbose_name_plural = 'Cloud Infrastructure Accounts'
