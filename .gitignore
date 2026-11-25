@@ -17,9 +17,6 @@ ENV/
 *.sqlite3
 .env
 
-# Static collection
-staticfiles/
-
 # Antigravity / IDE artifacts
 .gemini/
 .idea/
