@@ -1,13 +1,21 @@
 {
   "tab_mode": "auto",
   "today_tab": "25-nov",
+  "sheet1_gid": "1526707652",
+  "sheet2_gid": "1392394925",
   "sheet1_tab_override": "25-nov",
-  "sheet2_tab_override": "25-nov",
+  "sheet2_tab_override": "Nov 25",
   "is_locked": true,
   "client_mappings": {
     "8": "DE pulkit",
     "9": "IT pulkit",
     "10": "CH pulkit",
-    "11": "AT pulkit"
+    "11": "AT pulkit",
+    "12": "de anshu",
+    "13": "de salm",
+    "14": "us mj",
+    "15": "us maxy",
+    "16": "uk mj",
+    "17": "BE ARUN"
   }
 }

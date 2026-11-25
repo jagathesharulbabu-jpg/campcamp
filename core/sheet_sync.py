@@ -41,24 +41,26 @@ AVAILABLE_SHEET_COLUMNS = [
 ]
 
 FALLBACK_COLUMN_CALLS = {
-    'DE pulkit': 8,
-    'IT pulkit': 1,
+    'DE pulkit': 16,
+    'IT pulkit': 2,
+    'us mj': 3,
+    'de salm': 6,
     'CH pulkit': 0,
     'AT pulkit': 0,
-    'uk mj': 31,
-    'us mj': 20,
-    'us maxy': 0,
     'de anshu': 0,
-    'de salm': 0,
+    'ms ARUN': 0,
+    'us maxy': 0,
+    'uk mj': 0,
     'BE ARUN': 0,
-    'ms ARUN': 0
 }
 
 DEFAULT_SETTINGS = {
     "tab_mode": "auto",
     "today_tab": "25-nov",
+    "sheet1_gid": "1526707652",
+    "sheet2_gid": "1392394925",
     "sheet1_tab_override": "25-nov",
-    "sheet2_tab_override": "25-nov",
+    "sheet2_tab_override": "Nov 25",
     "is_locked": True,
     "client_mappings": {
         "8": "DE pulkit",
@@ -120,9 +122,24 @@ def save_sheet_settings(data):
     return True
 
 
-def fetch_sheet_csv_by_tab_name(sheet_id, tab_name, timeout=6):
-    """Downloads CSV data for specific tab name from Google Sheet, trying format variants."""
+def fetch_sheet_csv_by_tab_name(sheet_id, tab_name, timeout=6, custom_gid=None):
+    """Downloads CSV data for specific tab name or GID from Google Sheet."""
     import urllib.parse
+
+    # 1. If explicit GID provided, attempt direct GID export first
+    if custom_gid:
+        try:
+            gid_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={custom_gid}"
+            req = urllib.request.Request(gid_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                content = response.read().decode('utf-8', errors='ignore')
+                reader = list(csv.reader(io.StringIO(content)))
+                if reader and len(reader) > 0:
+                    return reader
+        except Exception:
+            pass
+
+    # 2. Try candidate tab names
     candidates = [tab_name]
     if '-26' in str(tab_name):
         candidates.append(str(tab_name).replace('-26', ''))
@@ -155,19 +172,19 @@ def fetch_sheet_csv_by_tab_name(sheet_id, tab_name, timeout=6):
         except Exception:
             continue
 
-    # Fallback to direct GID export if Sheet 1
-    if sheet_id == SHEET_1_ID:
-        for gid in ["1526707652", "644969503", "0"]:
-            try:
-                gid_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
-                req = urllib.request.Request(gid_url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=timeout) as response:
-                    content = response.read().decode('utf-8', errors='ignore')
-                    reader = list(csv.reader(io.StringIO(content)))
-                    if reader and len(reader) > 0:
-                        return reader
-            except Exception:
-                continue
+    # 3. Known fallback GIDs per sheet (Sheet 1: 1526707652, Sheet 2: 1392394925)
+    fallback_gids = ["1526707652", "644969503", "0"] if sheet_id == SHEET_1_ID else ["1392394925", "0"]
+    for gid in fallback_gids:
+        try:
+            gid_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+            req = urllib.request.Request(gid_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                content = response.read().decode('utf-8', errors='ignore')
+                reader = list(csv.reader(io.StringIO(content)))
+                if reader and len(reader) > 0:
+                    return reader
+        except Exception:
+            continue
 
     return []
 
@@ -248,9 +265,14 @@ def sync_today_calls_from_sheets(force=False, quick=False):
     is_locked = settings_data.get('is_locked', True)
     client_mappings = settings_data.get('client_mappings', {})
 
+    s1_gid = settings_data.get('sheet1_gid', '1526707652')
+    s2_gid = settings_data.get('sheet2_gid', '1392394925')
+    s1_tab = settings_data.get('sheet1_tab_override') or active_tab_name
+    s2_tab = settings_data.get('sheet2_tab_override') or 'Nov 25'
+
     # Fetch rows
-    rows_sheet1 = fetch_sheet_csv_by_tab_name(SHEET_1_ID, active_tab_name)
-    rows_sheet2 = fetch_sheet_csv_by_tab_name(SHEET_2_ID, active_tab_name)
+    rows_sheet1 = fetch_sheet_csv_by_tab_name(SHEET_1_ID, s1_tab, custom_gid=s1_gid)
+    rows_sheet2 = fetch_sheet_csv_by_tab_name(SHEET_2_ID, s2_tab, custom_gid=s2_gid)
 
     sheet1_connected = len(rows_sheet1) > 0
     sheet2_connected = len(rows_sheet2) > 0
