@@ -41,9 +41,9 @@ AVAILABLE_SHEET_COLUMNS = [
 ]
 
 FALLBACK_COLUMN_CALLS = {
-    'DE pulkit': 16,
-    'IT pulkit': 2,
-    'us mj': 3,
+    'DE pulkit': 19,
+    'IT pulkit': 4,
+    'us mj': 7,
     'de salm': 6,
     'CH pulkit': 0,
     'AT pulkit': 0,
@@ -229,7 +229,7 @@ def sync_today_calls_from_sheets(force=False, quick=False):
     2. Downloads and counts calls for each column.
     3. Resolves each client campaign's calls directly from its mapped sheet field.
     """
-    cache_key = "sheet_today_calls_summary_v2"
+    cache_key = "sheet_today_calls_summary_v3"
     if not force:
         cached = cache.get(cache_key)
         if cached:
@@ -283,12 +283,23 @@ def sync_today_calls_from_sheets(force=False, quick=False):
     raw_counts2, headers2 = parse_raw_column_calls(rows_sheet2)
 
     # Combined column call counts
-    combined_column_counts = FALLBACK_COLUMN_CALLS.copy()
+    combined_column_counts = {col: 0 for col in AVAILABLE_SHEET_COLUMNS}
     if sheet_connected:
-        for col, cnt in raw_counts1.items():
-            combined_column_counts[col] = cnt
-        for col, cnt in raw_counts2.items():
-            combined_column_counts[col] = combined_column_counts.get(col, 0) + cnt
+        if sheet1_connected:
+            for col, cnt in raw_counts1.items():
+                combined_column_counts[col] = combined_column_counts.get(col, 0) + cnt
+        else:
+            for col in ['DE pulkit', 'CH pulkit', 'AT pulkit', 'IT pulkit']:
+                combined_column_counts[col] = FALLBACK_COLUMN_CALLS.get(col, 0)
+
+        if sheet2_connected:
+            for col, cnt in raw_counts2.items():
+                combined_column_counts[col] = combined_column_counts.get(col, 0) + cnt
+        else:
+            for col in ['us mj', 'de anshu', 'ms ARUN', 'us maxy', 'uk mj', 'BE ARUN', 'de salm']:
+                combined_column_counts[col] = FALLBACK_COLUMN_CALLS.get(col, 0)
+    else:
+        combined_column_counts = FALLBACK_COLUMN_CALLS.copy()
 
     all_available_columns = list(dict.fromkeys(headers1 + headers2 + AVAILABLE_SHEET_COLUMNS))
 
