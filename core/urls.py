@@ -24,6 +24,8 @@ urlpatterns = [
     # Revocalls Real-Time Webhook & API Routes
     path('api/v1/revocalls/webhook/', views.revocalls_webhook_api, name='revocalls_webhook'),
     path('api/revocalls/webhook/', views.revocalls_webhook_api),  # short alias
+    path('dashboard/api/v1/revocalls/webhook/', views.revocalls_webhook_api),  # dashboard path alias
+    path('dashboard/api/revocalls/webhook/', views.revocalls_webhook_api),
     path('api/v1/revocalls/calls/', views.revocalls_calls_api, name='revocalls_calls_api'),
     path('api/v1/revocalls/test-webhook/', views.revocalls_test_webhook_api, name='revocalls_test_webhook_api'),
 

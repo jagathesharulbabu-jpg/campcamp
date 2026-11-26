@@ -336,6 +336,25 @@ def revocalls_webhook_api(request):
             return JsonResponse({'status': 'error', 'message': 'Unauthorized: invalid webhook secret'}, status=401)
 
     if request.method == 'GET':
+        # If call parameters are provided via GET query params, process them
+        has_call_params = any(k in request.GET for k in ['call_id', 'caller_number', 'from', 'phone', 'caller', 'id'])
+        if has_call_params:
+            payload = request.GET.dict()
+            call_obj, created, error = process_revocalls_webhook_payload(payload)
+            if error:
+                return JsonResponse({'status': 'error', 'message': error}, status=400)
+            return JsonResponse({
+                'status': 'success',
+                'action': 'created' if created else 'updated',
+                'call_id': call_obj.call_id,
+                'caller_number': call_obj.caller_number,
+                'destination_number': call_obj.destination_number,
+                'campaign_name': call_obj.campaign_name,
+                'call_status': call_obj.call_status,
+                'duration_seconds': call_obj.duration_seconds,
+                'call_time': call_obj.call_time.isoformat(),
+            }, status=201 if created else 200)
+
         # Health-check endpoint for Revocalls webhook verification
         return JsonResponse({
             'status': 'active',
