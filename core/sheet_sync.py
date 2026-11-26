@@ -78,14 +78,14 @@ DEFAULT_SETTINGS = {
 
 
 def get_today_tab_name():
-    """Generates today's tab name in 'DD-mmm-YY' format, e.g. '25-nov-26'."""
-    now = timezone.now()
+    """Generates today's tab name in 'DD-mmm-YY' format in local time, e.g. '26-nov-26'."""
+    now = timezone.localtime()
     return now.strftime("%d-%b-%y").lower()
 
 
 def get_recent_tab_names(limit=10):
-    """Returns the list of recent tabs matching the user's format (e.g. 25-nov-26, 24-nov-26, etc.)."""
-    now = timezone.now()
+    """Returns the list of recent tabs matching the user's format (e.g. 26-nov-26, 25-nov-26, etc.)."""
+    now = timezone.localtime()
     tabs = []
     # Generate past days
     for i in range(limit):
@@ -117,8 +117,8 @@ def save_sheet_settings(data):
         print(f"Error saving sheet_settings.json: {e}")
         return False
 
-    cache.delete("sheet_today_calls_summary_v2")
-    cache.delete("cached_column_calls_v2")
+    cache.delete("sheet_today_calls_summary_v4")
+    cache.delete("cached_column_calls_v4")
     return True
 
 
