@@ -294,3 +294,44 @@ class SheetSyncLog(models.Model):
 
     def __str__(self):
         return f"Sheet {self.sheet_number} Sync at {self.synced_at.strftime('%Y-%m-%d %H:%M')} ({self.status})"
+
+
+# 9. Revocalls Real-Time Incoming Calls (Webhook Ingestion)
+class RevocallsCall(models.Model):
+    class CallStatus(models.TextChoices):
+        ANSWERED = 'ANSWERED', 'Answered / Completed'
+        RINGING = 'RINGING', 'Ringing / In Progress'
+        MISSED = 'MISSED', 'Missed / Unanswered'
+        BUSY = 'BUSY', 'Line Busy'
+        FAILED = 'FAILED', 'Failed / Cancelled'
+        OTHER = 'OTHER', 'Other'
+
+    call_id = models.CharField(max_length=150, unique=True, db_index=True, help_text="Unique Call ID from Revocalls")
+    caller_number = models.CharField(max_length=60, db_index=True, help_text="Caller Phone / CLI")
+    destination_number = models.CharField(max_length=60, blank=True, default='', help_text="Virtual / DID Number called")
+    campaign_name = models.CharField(max_length=150, blank=True, default='', help_text="Revocalls Campaign / Queue")
+    country_code = models.CharField(max_length=10, blank=True, default='', help_text="e.g. DE, US, UK, IT")
+    call_status = models.CharField(max_length=30, choices=CallStatus.choices, default=CallStatus.ANSWERED)
+    duration_seconds = models.PositiveIntegerField(default=0, help_text="Call duration in seconds")
+    call_time = models.DateTimeField(default=timezone.now, db_index=True, help_text="Timestamp of incoming call")
+    recording_url = models.URLField(max_length=1000, blank=True, null=True, help_text="Audio recording link if available")
+    raw_data = models.JSONField(default=dict, blank=True, help_text="Full webhook payload for audit")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Revocalls Incoming Call'
+        verbose_name_plural = 'Revocalls Real-Time Calls'
+        ordering = ['-call_time']
+
+    @property
+    def duration_formatted(self):
+        mins = self.duration_seconds // 60
+        secs = self.duration_seconds % 60
+        if mins > 0:
+            return f"{mins}m {secs}s"
+        return f"{secs}s"
+
+    def __str__(self):
+        return f"[{self.call_status}] {self.caller_number} -> {self.campaign_name or 'Default'} ({self.call_time.strftime('%H:%M:%S')})"
+

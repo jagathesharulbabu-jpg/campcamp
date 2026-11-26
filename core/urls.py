@@ -21,6 +21,12 @@ urlpatterns = [
     path('api/v1/geo-calls/', views.geo_calls_api, name='geo_calls_api'),
     path('api/v1/sheet-settings/', views.sheet_settings_api, name='sheet_settings_api'),
 
+    # Revocalls Real-Time Webhook & API Routes
+    path('api/v1/revocalls/webhook/', views.revocalls_webhook_api, name='revocalls_webhook'),
+    path('api/revocalls/webhook/', views.revocalls_webhook_api),  # short alias
+    path('api/v1/revocalls/calls/', views.revocalls_calls_api, name='revocalls_calls_api'),
+    path('api/v1/revocalls/test-webhook/', views.revocalls_test_webhook_api, name='revocalls_test_webhook_api'),
+
     # REST API Routes (Ready for external apps, webhooks & ajax)
     path('api/v1/', include(router.urls)),
 ]

@@ -1,18 +1,25 @@
+import os
+import json
+import uuid
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.db.models import Count, Q
+from django.urls import reverse
+from django.conf import settings
 
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import User, Country, Client, PopupLink, CallLog, CloudAccount, DailyActivity
+from .models import User, Country, Client, PopupLink, CallLog, CloudAccount, DailyActivity, RevocallsCall
 from .sheet_sync import sync_today_calls_from_sheets
+from .revocalls import process_revocalls_webhook_payload
 from .serializers import (
     UserSerializer, CountrySerializer, ClientSerializer,
     PopupLinkSerializer, CallLogSerializer, CloudAccountSerializer,
@@ -303,6 +310,210 @@ def sheet_settings_api(request):
         'client_mappings': settings_data.get('client_mappings', {}),
         'is_locked': settings_data.get('is_locked', True),
         'sheet_connected': summary.get('sheet_connected', False)
+    })
+
+
+# ============================================================================
+# Revocalls Real-Time Webhook & Calls APIs
+# ============================================================================
+
+@csrf_exempt
+def revocalls_webhook_api(request):
+    """
+    Revocalls Outgoing Webhook receiver.
+    Receives real-time incoming call details from Revocalls, validates payload,
+    stores in PostgreSQL, and prevents duplicates.
+    """
+    # Verify optional webhook secret if configured
+    expected_secret = getattr(settings, 'REVOCALLS_WEBHOOK_SECRET', None) or os.environ.get('REVOCALLS_WEBHOOK_SECRET')
+    if expected_secret:
+        provided_secret = (
+            request.headers.get('X-Webhook-Secret') or
+            request.headers.get('X-Revocalls-Secret') or
+            request.GET.get('secret')
+        )
+        if provided_secret != expected_secret:
+            return JsonResponse({'status': 'error', 'message': 'Unauthorized: invalid webhook secret'}, status=401)
+
+    if request.method == 'GET':
+        # Health-check endpoint for Revocalls webhook verification
+        return JsonResponse({
+            'status': 'active',
+            'service': 'Revocalls Real-Time Webhook Receiver',
+            'message': 'Webhook receiver is active and ready to process incoming calls.',
+            'server_time': timezone.now().isoformat(),
+        })
+
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed. Use POST for incoming webhooks.'}, status=405)
+
+    payload = {}
+    # Parse JSON body first
+    if request.content_type and 'application/json' in request.content_type.lower():
+        try:
+            payload = json.loads(request.body.decode('utf-8'))
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f'Invalid JSON payload: {str(e)}'}, status=400)
+    else:
+        # Form-urlencoded or raw body decode
+        try:
+            if request.body:
+                payload = json.loads(request.body.decode('utf-8'))
+            else:
+                payload = request.POST.dict()
+        except Exception:
+            payload = request.POST.dict()
+
+    if not payload:
+        return JsonResponse({'status': 'error', 'message': 'Empty payload received'}, status=400)
+
+    call_obj, created, error = process_revocalls_webhook_payload(payload)
+    if error:
+        return JsonResponse({'status': 'error', 'message': error}, status=400)
+
+    return JsonResponse({
+        'status': 'success',
+        'action': 'created' if created else 'updated',
+        'call_id': call_obj.call_id,
+        'caller_number': call_obj.caller_number,
+        'destination_number': call_obj.destination_number,
+        'campaign_name': call_obj.campaign_name,
+        'call_status': call_obj.call_status,
+        'duration_seconds': call_obj.duration_seconds,
+        'call_time': call_obj.call_time.isoformat(),
+    }, status=201 if created else 200)
+
+
+@login_required
+def revocalls_calls_api(request):
+    """
+    Returns real-time Revocalls incoming calls and summary statistics.
+    Used for dashboard live feed and auto-polling.
+    """
+    # Time range: today since midnight in local time
+    today_start = timezone.localtime(timezone.now()).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    total_today = RevocallsCall.objects.filter(call_time__gte=today_start).count()
+    answered_today = RevocallsCall.objects.filter(call_time__gte=today_start, call_status='ANSWERED').count()
+    missed_today = RevocallsCall.objects.filter(call_time__gte=today_start, call_status__in=['MISSED', 'FAILED', 'BUSY']).count()
+    
+    total_duration_today = sum(RevocallsCall.objects.filter(call_time__gte=today_start).values_list('duration_seconds', flat=True))
+    total_all_time = RevocallsCall.objects.count()
+
+    dur_mins = total_duration_today // 60
+    dur_secs = total_duration_today % 60
+    total_duration_formatted = f"{dur_mins}m {dur_secs}s" if dur_mins > 0 else f"{dur_secs}s"
+
+    query = RevocallsCall.objects.all()
+
+    # Search filter
+    search_q = request.GET.get('search', '').strip()
+    if search_q:
+        query = query.filter(
+            Q(caller_number__icontains=search_q) |
+            Q(destination_number__icontains=search_q) |
+            Q(campaign_name__icontains=search_q) |
+            Q(call_id__icontains=search_q)
+        )
+
+    # Status filter
+    status_filter = request.GET.get('status', '').strip().upper()
+    if status_filter and status_filter != 'ALL':
+        query = query.filter(call_status=status_filter)
+
+    limit = min(int(request.GET.get('limit') or 50), 200)
+    calls_qs = query.order_by('-call_time')[:limit]
+
+    now_local = timezone.localtime(timezone.now())
+    calls_data = []
+    for c in calls_qs:
+        c_time_local = timezone.localtime(c.call_time)
+        diff_sec = int((now_local - c_time_local).total_seconds())
+        if diff_sec < 60:
+            ago = "Just now"
+        elif diff_sec < 3600:
+            ago = f"{diff_sec // 60}m ago"
+        elif diff_sec < 86400:
+            ago = f"{diff_sec // 3600}h ago"
+        else:
+            ago = f"{diff_sec // 86400}d ago"
+
+        calls_data.append({
+            'id': c.id,
+            'call_id': c.call_id,
+            'caller_number': c.caller_number,
+            'destination_number': c.destination_number,
+            'campaign_name': c.campaign_name,
+            'country_code': c.country_code,
+            'call_status': c.call_status,
+            'duration_seconds': c.duration_seconds,
+            'duration_formatted': c.duration_formatted,
+            'call_time_formatted': c_time_local.strftime('%d %b, %H:%M:%S'),
+            'call_time_ago': ago,
+            'recording_url': c.recording_url,
+            'raw_data': c.raw_data,
+        })
+
+    webhook_url = request.build_absolute_uri(reverse('revocalls_webhook'))
+
+    return JsonResponse({
+        'status': 'SUCCESS',
+        'stats': {
+            'total_today': total_today,
+            'answered_today': answered_today,
+            'missed_today': missed_today,
+            'total_duration_today_seconds': total_duration_today,
+            'total_duration_today_formatted': total_duration_formatted,
+            'total_all_time': total_all_time,
+        },
+        'calls': calls_data,
+        'webhook_url': webhook_url,
+        'timestamp': timezone.now().isoformat()
+    })
+
+
+@login_required
+@require_POST
+def revocalls_test_webhook_api(request):
+    """
+    Simulates a test incoming call from Revocalls with a realistic payload,
+    allowing users to verify the webhook receiver and real-time dashboard feed.
+    """
+    import random
+    test_id = f"test_{uuid.uuid4().hex[:8]}"
+    sample_numbers = ['+491763482910', '+447911123456', '+12025550143', '+39066987123', '+4312345678', '+32470123456']
+    sample_camps = ['DE pulkit', 'uk mj', 'us maxy', 'IT pulkit', 'BE ARUN']
+    sample_statuses = ['ANSWERED', 'ANSWERED', 'RINGING', 'MISSED']
+    
+    selected_num = random.choice(sample_numbers)
+    selected_camp = random.choice(sample_camps)
+    selected_status = random.choice(sample_statuses)
+    dur = random.randint(20, 210) if selected_status == 'ANSWERED' else 0
+
+    test_payload = {
+        'call_id': test_id,
+        'caller_number': selected_num,
+        'destination_number': '+498925552522',
+        'campaign_name': selected_camp,
+        'call_status': selected_status,
+        'duration_seconds': dur,
+        'call_time': timezone.now().isoformat(),
+        'source': 'Revocalls Outgoing Webhook Test',
+        'note': 'Generated from PopupLeads Test Webhook button'
+    }
+
+    call_obj, created, error = process_revocalls_webhook_payload(test_payload)
+    if error:
+        return JsonResponse({'status': 'ERROR', 'message': error}, status=400)
+
+    return JsonResponse({
+        'status': 'SUCCESS',
+        'message': 'Test incoming call successfully simulated!',
+        'call_id': call_obj.call_id,
+        'caller_number': call_obj.caller_number,
+        'campaign_name': call_obj.campaign_name,
+        'call_status': call_obj.call_status,
+        'duration_formatted': call_obj.duration_formatted,
     })
 
 

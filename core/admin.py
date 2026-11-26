@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
-from .models import User, Country, Client, PopupLink, CallLog, CloudAccount, DailyActivity, SheetSyncLog
+from .models import User, Country, Client, PopupLink, CallLog, CloudAccount, DailyActivity, SheetSyncLog, RevocallsCall
 
 
 @admin.register(User)
@@ -135,3 +135,12 @@ class DailyActivityAdmin(admin.ModelAdmin):
 class SheetSyncLogAdmin(admin.ModelAdmin):
     list_display = ('sheet_title', 'sheet_number', 'synced_at', 'rows_synced', 'status')
     list_filter = ('status', 'sheet_number')
+
+
+@admin.register(RevocallsCall)
+class RevocallsCallAdmin(admin.ModelAdmin):
+    list_display = ('caller_number', 'campaign_name', 'destination_number', 'call_status', 'duration_seconds', 'call_time', 'created_at')
+    list_filter = ('call_status', 'campaign_name', 'call_time')
+    search_fields = ('caller_number', 'destination_number', 'call_id', 'campaign_name')
+    ordering = ('-call_time',)
+    readonly_fields = ('call_id', 'created_at', 'updated_at', 'raw_data')

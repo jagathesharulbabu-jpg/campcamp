@@ -45,6 +45,19 @@ const state = {
   isLocked: true,
   showOfflineCountries: false,
 
+  // Revocalls Incoming Webhook Live State
+  revocallsCalls: [],
+  revocallsStats: {
+    total_today: 0,
+    answered_today: 0,
+    missed_today: 0,
+    total_duration_today_formatted: '0s',
+    total_all_time: 0
+  },
+  revocallsWebhookUrl: '',
+  revocallsFilter: 'ALL',
+  revocallsSearch: '',
+
   async fetchAll() {
     try {
       const [countriesRes, cloudRes] = await Promise.all([
@@ -65,10 +78,42 @@ const state = {
       // 2. Load Google Sheets live call numbers asynchronously in background (does not block UI)
       this.fetchGeoCalls(false);
       this.fetchSheetSettings();
+      // 3. Load Revocalls real-time incoming calls and badge count
+      this.fetchRevocallsCalls(false);
     } catch (e) {
       console.error('API Fetch error:', e);
       showToast('Network error loading data', 'error');
     }
+  },
+
+  async fetchRevocallsCalls(forceRender = false) {
+    try {
+      let url = `/api/v1/revocalls/calls/?status=${encodeURIComponent(this.revocallsFilter)}`;
+      if (this.revocallsSearch.trim()) {
+        url += `&search=${encodeURIComponent(this.revocallsSearch.trim())}`;
+      }
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        this.revocallsCalls = data.calls || [];
+        if (data.stats) this.revocallsStats = data.stats;
+        if (data.webhook_url) this.revocallsWebhookUrl = data.webhook_url;
+
+        // Update sidebar badge
+        const badge = document.getElementById('sidebarRevocallsBadge');
+        if (badge) {
+          badge.textContent = `${this.revocallsStats.total_today || 0} Calls`;
+        }
+
+        if (this.activeView === 'revocalls' || forceRender) {
+          renderRevocallsSection();
+        }
+        return data;
+      }
+    } catch (e) {
+      console.error('Revocalls fetch error:', e);
+    }
+    return null;
   },
 
   async fetchGeoCalls(force = false) {
@@ -590,12 +635,14 @@ function switchView(viewName) {
   const campSec = document.getElementById('viewCampaignsSection');
   const doSec = document.getElementById('viewDigitalOceanSection');
   const azureSec = document.getElementById('viewAzureSection');
+  const revoSec = document.getElementById('viewRevocallsSection');
   const settingsSec = document.getElementById('viewSettingsSection');
   const sheetSec = document.getElementById('sheetEmbedView');
 
   if (campSec) campSec.classList.toggle('hidden', viewName !== 'campaigns');
   if (doSec) doSec.classList.toggle('hidden', viewName !== 'digitalocean');
   if (azureSec) azureSec.classList.toggle('hidden', viewName !== 'azure');
+  if (revoSec) revoSec.classList.toggle('hidden', viewName !== 'revocalls');
   if (settingsSec) settingsSec.classList.toggle('hidden', viewName !== 'settings');
   if (sheetSec) sheetSec.classList.add('hidden');
 
@@ -605,12 +652,16 @@ function switchView(viewName) {
     if (viewName === 'campaigns') label.textContent = 'All Country Campaigns & Leads';
     else if (viewName === 'digitalocean') label.textContent = 'DigitalOcean Infrastructure & Domains';
     else if (viewName === 'azure') label.textContent = 'Microsoft Azure Cloud & Domains';
+    else if (viewName === 'revocalls') label.textContent = 'Revocalls Real-Time Inbound Calls & Webhook Stream';
     else if (viewName === 'settings') label.textContent = 'Sheet Sync & Country Field Mapping Settings';
   }
 
   // Render view data
   if (viewName === 'digitalocean') renderCloudSection('DIGITALOCEAN');
   if (viewName === 'azure') renderCloudSection('AZURE');
+  if (viewName === 'revocalls') {
+    state.fetchRevocallsCalls(true);
+  }
   if (viewName === 'settings') renderSettingsView();
 }
 
@@ -1509,6 +1560,128 @@ function openEditCountryModal(countryId) {
   Modal.open('countryModal');
 }
 
+/**
+ * Render Revocalls Real-Time Webhook Calls View
+ */
+function renderRevocallsSection() {
+  // 1. Update metric stat cards
+  const statToday = document.getElementById('revocallsStatToday');
+  const statAnswered = document.getElementById('revocallsStatAnswered');
+  const statMissed = document.getElementById('revocallsStatMissed');
+  const statDuration = document.getElementById('revocallsStatDuration');
+  const filterCountAll = document.getElementById('revoFilterCountAll');
+  const webhookDisplay = document.getElementById('revocallsWebhookUrlDisplay');
+
+  if (statToday) statToday.textContent = state.revocallsStats.total_today || 0;
+  if (statAnswered) statAnswered.textContent = state.revocallsStats.answered_today || 0;
+  if (statMissed) statMissed.textContent = state.revocallsStats.missed_today || 0;
+  if (statDuration) statDuration.textContent = state.revocallsStats.total_duration_today_formatted || '0s';
+  if (filterCountAll) filterCountAll.textContent = state.revocallsStats.total_all_time || (state.revocallsCalls ? state.revocallsCalls.length : 0);
+  if (webhookDisplay && state.revocallsWebhookUrl) {
+    webhookDisplay.textContent = state.revocallsWebhookUrl;
+  }
+
+  // 2. Render Table Rows
+  const tbody = document.getElementById('revocallsTableBody');
+  if (!tbody) return;
+
+  if (!state.revocallsCalls || state.revocallsCalls.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="py-12 text-center text-slate-400">
+          <div class="text-3xl mb-2">📭</div>
+          <div class="font-bold text-slate-600 mb-1">No incoming calls recorded yet</div>
+          <div class="text-xs text-slate-400 max-w-md mx-auto">
+            Calls received via the Revocalls Outgoing Webhook will stream here automatically. Click <strong>"⚡ Send Test Call"</strong> above to test the webhook receiver now.
+          </div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  const rowsHtml = state.revocallsCalls.map(c => {
+    // Flag by country code
+    let flagEmoji = '📞';
+    const cc = (c.country_code || '').toUpperCase();
+    if (cc === 'DE') flagEmoji = '🇩🇪';
+    else if (cc === 'US') flagEmoji = '🇺🇸';
+    else if (cc === 'UK' || cc === 'GB') flagEmoji = '🇬🇧';
+    else if (cc === 'IT') flagEmoji = '🇮🇹';
+    else if (cc === 'AT') flagEmoji = '🇦🇹';
+    else if (cc === 'CH') flagEmoji = '🇨🇭';
+    else if (cc === 'BE') flagEmoji = '🇧🇪';
+    else if (cc === 'FR') flagEmoji = '🇫🇷';
+    else if (cc === 'ES') flagEmoji = '🇪🇸';
+    else if (cc === 'IN') flagEmoji = '🇮🇳';
+
+    // Status badge
+    let badgeHtml = '';
+    const st = (c.call_status || '').toUpperCase();
+    if (st === 'ANSWERED' || st === 'COMPLETED') {
+      badgeHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">✅ Answered</span>`;
+    } else if (st === 'RINGING' || st === 'IN-PROGRESS') {
+      badgeHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 animate-pulse">🔔 Ringing</span>`;
+    } else if (st === 'MISSED' || st === 'NO_ANSWER') {
+      badgeHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">⚠️ Missed</span>`;
+    } else if (st === 'BUSY') {
+      badgeHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-800">🚫 Busy</span>`;
+    } else {
+      badgeHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800">${escapeHtml(c.call_status)}</span>`;
+    }
+
+    return `
+      <tr class="hover:bg-slate-50/80 transition-colors">
+        <td class="py-3 px-4 whitespace-nowrap">
+          <div class="font-bold text-slate-800">${escapeHtml(c.call_time_ago)}</div>
+          <div class="text-[11px] text-slate-400 font-mono">${escapeHtml(c.call_time_formatted)}</div>
+        </td>
+        <td class="py-3 px-4 whitespace-nowrap">
+          <div class="flex items-center gap-1.5">
+            <span class="text-sm">${flagEmoji}</span>
+            <span class="font-mono font-bold text-blue-700">${escapeHtml(c.caller_number)}</span>
+            <button type="button" class="text-slate-400 hover:text-blue-600 transition-colors p-0.5" onclick="copyToClipboard('${escapeHtml(c.caller_number)}', 'Phone number copied!')" title="Copy phone number">
+              📋
+            </button>
+          </div>
+          ${c.country_code ? `<span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">${escapeHtml(c.country_code)}</span>` : ''}
+        </td>
+        <td class="py-3 px-4">
+          <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-semibold rounded text-[11px]">
+            ${escapeHtml(c.campaign_name || 'Inbound')}
+          </span>
+        </td>
+        <td class="py-3 px-4 font-mono text-slate-600 text-xs">
+          ${escapeHtml(c.destination_number || '—')}
+        </td>
+        <td class="py-3 px-4 text-center whitespace-nowrap">
+          ${badgeHtml}
+        </td>
+        <td class="py-3 px-4 text-center whitespace-nowrap font-mono font-bold text-slate-700">
+          ${escapeHtml(c.duration_formatted)}
+        </td>
+        <td class="py-3 px-4 text-right whitespace-nowrap">
+          <button type="button" class="btn btn-outline text-[11px] py-1 px-2.5" onclick="inspectRevocallsPayload(${c.id})" title="Inspect complete webhook payload">
+            🔍 Inspect
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.innerHTML = rowsHtml;
+}
+
+window.inspectRevocallsPayload = function(callId) {
+  const call = (state.revocallsCalls || []).find(c => c.id === callId);
+  if (!call) return;
+  const jsonPre = document.getElementById('revocallsInspectJson');
+  if (jsonPre) {
+    jsonPre.textContent = JSON.stringify(call.raw_data || call, null, 2);
+  }
+  Modal.open('revocallsInspectModal');
+};
+
 // 7. Event Handlers & Initialization
 document.addEventListener('DOMContentLoaded', () => {
   state.fetchAll();
@@ -1518,11 +1691,73 @@ document.addEventListener('DOMContentLoaded', () => {
     state.fetchGeoCalls(true);
   }, 25000);
 
+  // Automatic Real-Time Revocalls Webhook Live Poll (Every 10 seconds)
+  setInterval(() => {
+    state.fetchRevocallsCalls(state.activeView === 'revocalls');
+  }, 10000);
+
   // Sidebar Navigation View Tabs
   document.getElementById('tabCampaignsBtn')?.addEventListener('click', () => switchView('campaigns'));
   document.getElementById('tabDigitalOceanBtn')?.addEventListener('click', () => switchView('digitalocean'));
   document.getElementById('tabAzureBtn')?.addEventListener('click', () => switchView('azure'));
+  document.getElementById('tabRevocallsBtn')?.addEventListener('click', () => switchView('revocalls'));
   document.getElementById('tabSettingsBtn')?.addEventListener('click', () => switchView('settings'));
+
+  // Revocalls Copy Webhook Button
+  document.getElementById('revocallsCopyWebhookBtn')?.addEventListener('click', () => {
+    const url = state.revocallsWebhookUrl || `${window.location.origin}/api/v1/revocalls/webhook/`;
+    copyToClipboard(url, 'Revocalls Webhook URL copied to clipboard!');
+  });
+
+  // Revocalls Refresh Button
+  document.getElementById('revocallsRefreshBtn')?.addEventListener('click', async () => {
+    showToast('Refreshing Revocalls stream...', 'info');
+    await state.fetchRevocallsCalls(true);
+    showToast('Revocalls call stream refreshed', 'success');
+  });
+
+  // Revocalls Simulate Test Webhook Call Button
+  document.getElementById('revocallsSimulateTestBtn')?.addEventListener('click', async () => {
+    try {
+      showToast('Simulating incoming test call...', 'info');
+      const res = await fetch('/api/v1/revocalls/test-webhook/', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCsrfToken(),
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'SUCCESS') {
+        showToast(`Test Call Received: ${data.caller_number} (${data.campaign_name}) [${data.duration_formatted}]`, 'success');
+        await state.fetchRevocallsCalls(true);
+      } else {
+        showToast(data.message || 'Error triggering test webhook', 'error');
+      }
+    } catch (e) {
+      showToast('Error sending test webhook call', 'error');
+    }
+  });
+
+  // Revocalls Search Filter
+  let revoSearchTimeout = null;
+  document.getElementById('revocallsSearchInput')?.addEventListener('input', (e) => {
+    clearTimeout(revoSearchTimeout);
+    revoSearchTimeout = setTimeout(() => {
+      state.revocallsSearch = e.target.value.trim();
+      state.fetchRevocallsCalls(true);
+    }, 300);
+  });
+
+  // Revocalls Status Filter Pills
+  document.querySelectorAll('[data-revo-status]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('[data-revo-status]').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      state.revocallsFilter = e.currentTarget.dataset.revoStatus || 'ALL';
+      state.fetchRevocallsCalls(true);
+    });
+  });
 
   // Quick Tab Modal Openers
   const openTabModal = () => {
