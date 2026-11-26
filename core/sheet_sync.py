@@ -41,10 +41,10 @@ AVAILABLE_SHEET_COLUMNS = [
 ]
 
 FALLBACK_COLUMN_CALLS = {
-    'DE pulkit': 19,
-    'IT pulkit': 4,
-    'us mj': 7,
-    'de salm': 6,
+    'DE pulkit': 0,
+    'IT pulkit': 0,
+    'us mj': 0,
+    'de salm': 0,
     'CH pulkit': 0,
     'AT pulkit': 0,
     'de anshu': 0,
@@ -56,11 +56,11 @@ FALLBACK_COLUMN_CALLS = {
 
 DEFAULT_SETTINGS = {
     "tab_mode": "auto",
-    "today_tab": "25-nov",
-    "sheet1_gid": "1526707652",
-    "sheet2_gid": "1392394925",
-    "sheet1_tab_override": "25-nov",
-    "sheet2_tab_override": "Nov 25",
+    "today_tab": "",
+    "sheet1_gid": "",
+    "sheet2_gid": "",
+    "sheet1_tab_override": "",
+    "sheet2_tab_override": "",
     "is_locked": True,
     "client_mappings": {
         "8": "DE pulkit",
@@ -126,27 +126,24 @@ def fetch_sheet_csv_by_tab_name(sheet_id, tab_name, timeout=6, custom_gid=None):
     """Downloads CSV data for specific tab name or GID from Google Sheet."""
     import urllib.parse
 
-    # 1. If explicit GID provided, attempt direct GID export first
-    if custom_gid:
-        try:
-            gid_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={custom_gid}"
-            req = urllib.request.Request(gid_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=timeout) as response:
-                content = response.read().decode('utf-8', errors='ignore')
-                reader = list(csv.reader(io.StringIO(content)))
-                if reader and len(reader) > 0:
-                    return reader
-        except Exception:
-            pass
+    # 1. Try candidate tab names FIRST (auto-adapting 26-nov-26, 26-nov, Nov 26, etc.)
+    candidates = [str(tab_name)]
+    t_str = str(tab_name).strip()
+    if '-26' in t_str:
+        candidates.append(t_str.replace('-26', ''))
+    elif not t_str.endswith('-26'):
+        candidates.append(f"{t_str}-26")
 
-    # 2. Try candidate tab names
-    candidates = [tab_name]
-    if '-26' in str(tab_name):
-        candidates.append(str(tab_name).replace('-26', ''))
-    elif not str(tab_name).endswith('-26'):
-        candidates.append(f"{tab_name}-26")
+    # Add month/day permutation variants (e.g. 26-nov -> Nov 26, nov 26, 26 Nov)
+    parts = t_str.replace('-26', '').split('-')
+    if len(parts) == 2:
+        d, m = parts[0], parts[1]
+        candidates.append(f"{m} {d}")
+        candidates.append(f"{m.title()} {d}")
+        candidates.append(f"{d} {m}")
+        candidates.append(f"{d} {m.title()}")
 
-    # Add common casing/naming variants
+    # Common casing
     for c in list(candidates):
         candidates.append(c.lower())
         candidates.append(c.title())
@@ -172,11 +169,10 @@ def fetch_sheet_csv_by_tab_name(sheet_id, tab_name, timeout=6, custom_gid=None):
         except Exception:
             continue
 
-    # 3. Known fallback GIDs per sheet (Sheet 1: 1526707652, Sheet 2: 1392394925)
-    fallback_gids = ["1526707652", "644969503", "0"] if sheet_id == SHEET_1_ID else ["1392394925", "0"]
-    for gid in fallback_gids:
+    # 2. If tab name matching failed AND explicit GID provided (e.g. manual override), try GID
+    if custom_gid:
         try:
-            gid_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+            gid_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={custom_gid}"
             req = urllib.request.Request(gid_url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req, timeout=timeout) as response:
                 content = response.read().decode('utf-8', errors='ignore')
@@ -184,7 +180,7 @@ def fetch_sheet_csv_by_tab_name(sheet_id, tab_name, timeout=6, custom_gid=None):
                 if reader and len(reader) > 0:
                     return reader
         except Exception:
-            continue
+            pass
 
     return []
 
@@ -229,7 +225,7 @@ def sync_today_calls_from_sheets(force=False, quick=False):
     2. Downloads and counts calls for each column.
     3. Resolves each client campaign's calls directly from its mapped sheet field.
     """
-    cache_key = "sheet_today_calls_summary_v3"
+    cache_key = "sheet_today_calls_summary_v4"
     if not force:
         cached = cache.get(cache_key)
         if cached:
@@ -261,14 +257,21 @@ def sync_today_calls_from_sheets(force=False, quick=False):
     tab_mode = settings_data.get('tab_mode', 'auto')
     today_tab = get_today_tab_name()
 
-    active_tab_name = today_tab if tab_mode == 'auto' else (settings_data.get('sheet1_tab_override') or today_tab)
+    if tab_mode == 'auto':
+        active_tab_name = today_tab
+        s1_tab = today_tab
+        s2_tab = today_tab
+        s1_gid = None
+        s2_gid = None
+    else:
+        active_tab_name = settings_data.get('sheet1_tab_override') or today_tab
+        s1_tab = active_tab_name
+        s2_tab = settings_data.get('sheet2_tab_override') or active_tab_name
+        s1_gid = settings_data.get('sheet1_gid')
+        s2_gid = settings_data.get('sheet2_gid')
+
     is_locked = settings_data.get('is_locked', True)
     client_mappings = settings_data.get('client_mappings', {})
-
-    s1_gid = settings_data.get('sheet1_gid', '1526707652')
-    s2_gid = settings_data.get('sheet2_gid', '1392394925')
-    s1_tab = settings_data.get('sheet1_tab_override') or active_tab_name
-    s2_tab = settings_data.get('sheet2_tab_override') or 'Nov 25'
 
     # Fetch rows
     rows_sheet1 = fetch_sheet_csv_by_tab_name(SHEET_1_ID, s1_tab, custom_gid=s1_gid)
