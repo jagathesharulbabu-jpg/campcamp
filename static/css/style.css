@@ -2286,6 +2286,338 @@ input:checked + .slider:before {
   }
 }
 
+/* Enhanced Mobile & Tablet Responsiveness */
+@media (max-width: 640px) {
+  /* Top Navbar on Mobile */
+  .top-navbar {
+    padding: 0 0.75rem;
+    height: 58px;
+  }
+
+  .nav-right {
+    gap: 0.35rem;
+  }
+
+  .nav-right .btn-sheet-view {
+    padding: 0.38rem 0.55rem;
+    font-size: 0.75rem;
+  }
+
+  .nav-right .btn-sheet-view span {
+    display: none;
+  }
+
+  .nav-right #exportCsvBtn {
+    padding: 0.38rem 0.55rem;
+    font-size: 0.75rem;
+  }
+
+  .nav-right #exportCsvBtn span {
+    display: none;
+  }
+
+  .nav-right #topAddCountryBtn {
+    padding: 0.38rem 0.65rem;
+    font-size: 0.75rem;
+    gap: 0.25rem;
+  }
+
+  /* Live Pulse Tracker Panel */
+  .geo-calls-tracker-panel {
+    padding: 0.9rem 0.85rem;
+    border-radius: var(--radius-lg);
+  }
+
+  .geo-tracker-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .geo-tracker-title-wrap {
+    width: 100%;
+  }
+
+  .geo-tracker-title {
+    font-size: 1rem;
+  }
+
+  .geo-tracker-summary-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .total-calls-pill {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .total-calls-number {
+    font-size: 1.25rem;
+  }
+
+  #addGeoBtn,
+  #refreshGeoCallsBtn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.45rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  /* Pulse Cards Grid: 2 columns on smartphones */
+  .geo-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.6rem;
+  }
+
+  .geo-call-card {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .geo-flag-emoji {
+    font-size: 1.2rem;
+  }
+
+  .geo-code-text {
+    font-size: 0.88rem;
+  }
+
+  .geo-calls-count {
+    font-size: 1.55rem;
+  }
+
+  .geo-calls-unit {
+    font-size: 0.72rem;
+  }
+
+  .geo-card-time-row {
+    font-size: 0.7rem;
+  }
+
+  .geo-status-pill-sm {
+    font-size: 0.62rem;
+    padding: 0.12rem 0.35rem;
+  }
+
+  /* Running & Paused Status Rows */
+  .status-row {
+    padding: 0.75rem 0.85rem;
+    border-radius: var(--radius-md);
+  }
+
+  .status-row-header {
+    font-size: 0.8rem;
+  }
+
+  .status-badge-count {
+    font-size: 0.68rem;
+    padding: 0.15rem 0.45rem;
+  }
+
+  .status-chips-container {
+    gap: 0.4rem;
+  }
+
+  .country-chip {
+    padding: 0.32rem 0.6rem 0.32rem 0.5rem;
+    max-width: 100%;
+    gap: 0.4rem;
+  }
+
+  .chip-flag {
+    font-size: 1rem;
+  }
+
+  .chip-name {
+    font-size: 0.76rem;
+  }
+
+  .chip-time-active,
+  .chip-time-paused {
+    font-size: 0.63rem;
+  }
+
+  .chip-quick-toggle {
+    padding: 0.2rem 0.45rem;
+    font-size: 0.68rem;
+  }
+
+  /* Main Filter Bar */
+  .main-filter-bar {
+    gap: 0.75rem;
+  }
+
+  .section-heading {
+    font-size: 1.15rem;
+  }
+
+  .section-subtext {
+    font-size: 0.76rem;
+  }
+
+  .filter-right {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .status-filter-group {
+    display: flex;
+    width: 100%;
+  }
+
+  .status-filter-group .filter-pill {
+    flex: 1;
+    text-align: center;
+    padding: 0.4rem 0.25rem;
+    font-size: 0.74rem;
+  }
+
+  .select-wrapper {
+    flex: 1 1 calc(58% - 0.25rem);
+    min-width: 130px;
+  }
+
+  .select-wrapper select {
+    font-size: 0.75rem;
+    padding: 0.4rem 1.8rem 0.4rem 0.65rem;
+  }
+
+  #toggleAllCollapseBtn {
+    flex: 1 1 calc(42% - 0.25rem);
+    padding: 0.4rem 0.5rem;
+    font-size: 0.74rem;
+    justify-content: center;
+  }
+
+  /* Country Campaign Cards */
+  .country-card-header {
+    padding: 0.85rem;
+    gap: 0.65rem;
+  }
+
+  .country-header-left {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .country-header-live-info {
+    width: 100%;
+    margin: 0.25rem 0 0 0;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .header-live-mobile {
+    font-size: 0.76rem;
+    padding: 0.22rem 0.55rem;
+  }
+
+  .header-live-time {
+    font-size: 0.72rem;
+    padding: 0.22rem 0.5rem;
+  }
+
+  .country-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    padding-top: 0.45rem;
+  }
+
+  /* Client Block */
+  .client-block-header {
+    padding: 0.65rem 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .client-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .client-header-actions .btn {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+  }
+
+  /* Entries Table */
+  .entries-table th,
+  .entries-table td {
+    padding: 0.55rem 0.65rem;
+    font-size: 0.75rem;
+  }
+
+  .link-cell,
+  .mobiles-cell {
+    max-width: 130px;
+  }
+
+  /* Modals */
+  .modal {
+    width: 96% !important;
+    margin: 0.5rem auto;
+    border-radius: var(--radius-lg);
+  }
+
+  .modal-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .modal-body {
+    padding: 0.85rem 1rem;
+    max-height: calc(85vh - 110px);
+  }
+
+  .modal-footer {
+    padding: 0.65rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .modal-footer .btn {
+    flex: 1;
+    min-width: 80px;
+    justify-content: center;
+  }
+
+  /* Settings Page on Mobile */
+  .settings-card-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .settings-card-body {
+    padding: 0.85rem;
+  }
+
+  #simpleMappingTable th,
+  #simpleMappingTable td {
+    padding: 0.45rem 0.55rem;
+    font-size: 0.74rem;
+  }
+}
+
+/* Extra small devices (<= 380px) */
+@media (max-width: 380px) {
+  .geo-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .geo-tracker-summary-group {
+    grid-template-columns: 1fr;
+  }
+
+  .select-wrapper,
+  #toggleAllCollapseBtn {
+    flex: 1 1 100%;
+  }
+}
+
 .sheet-nav-buttons {
   display: flex;
   align-items: center;
