@@ -1646,13 +1646,21 @@ function renderRevocallsSection() {
           </div>
           ${c.country_code ? `<span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">${escapeHtml(c.country_code)}</span>` : ''}
         </td>
+        <td class="py-3 px-4 whitespace-nowrap">
+          <div class="flex items-center gap-1.5">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+              📞 ${escapeHtml(c.destination_number || '—')}
+            </span>
+            ${c.destination_number ? `
+            <button type="button" class="text-slate-400 hover:text-indigo-600 transition-colors p-0.5" onclick="copyToClipboard('${escapeHtml(c.destination_number)}', 'Dialed number copied!')" title="Copy dialed number">
+              📋
+            </button>` : ''}
+          </div>
+        </td>
         <td class="py-3 px-4">
           <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-semibold rounded text-[11px]">
             ${escapeHtml(c.campaign_name || 'Inbound')}
           </span>
-        </td>
-        <td class="py-3 px-4 font-mono text-slate-600 text-xs">
-          ${escapeHtml(c.destination_number || '—')}
         </td>
         <td class="py-3 px-4 text-center whitespace-nowrap">
           ${badgeHtml}

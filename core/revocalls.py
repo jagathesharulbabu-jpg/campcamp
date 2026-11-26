@@ -106,9 +106,26 @@ def parse_call_time(raw_time):
         pass
 
     # Try common date formats
-    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y/%m/%d %H:%M:%S', '%d-%m-%Y %H:%M:%S', '%Y-%m-%dT%H:%M:%SZ'):
+    date_formats = (
+        '%Y-%m-%d %H:%M:%S',
+        '%Y-%m-%d %I:%M:%S %p',
+        '%Y/%m/%d %H:%M:%S',
+        '%d-%m-%Y %H:%M:%S',
+        '%Y-%m-%dT%H:%M:%SZ',
+        '%b %d, %Y, %I:%M:%S %p',
+        '%b %d, %Y, %H:%M:%S',
+        '%b %d, %I:%M:%S %p',
+        '%b %d, %H:%M:%S',
+        '%m/%d/%Y %I:%M:%S %p',
+        '%m/%d/%Y %H:%M:%S',
+    )
+    for fmt in date_formats:
         try:
             dt = datetime.strptime(time_str, fmt)
+            # If year parsed as 1900 (because year wasn't in format), use current year
+            if dt.year == 1900:
+                current_year = timezone.now().year
+                dt = dt.replace(year=current_year)
             return timezone.make_aware(dt, timezone.get_current_timezone())
         except Exception:
             continue
@@ -125,71 +142,77 @@ def process_revocalls_webhook_payload(payload):
     if not isinstance(payload, dict):
         return None, False, "Invalid payload: expected JSON object or form dictionary"
 
+    # Lowercase key map for case-insensitive matching
+    p_lower = {str(k).strip().lower(): v for k, v in payload.items()}
+
     # Extract Call ID with priority
     call_id = (
-        payload.get('call_id') or
-        payload.get('id') or
-        payload.get('uuid') or
-        payload.get('call_sid') or
-        payload.get('callId') or
-        payload.get('session_id') or
-        payload.get('uniqueid')
+        p_lower.get('call_id') or
+        p_lower.get('id') or
+        p_lower.get('uuid') or
+        p_lower.get('call_sid') or
+        p_lower.get('callid') or
+        p_lower.get('session_id') or
+        p_lower.get('uniqueid')
     )
 
-    # Extract Caller Phone Number
+    # Extract Caller ID / Caller Phone Number
     caller_number = (
-        payload.get('caller_number') or
-        payload.get('from') or
-        payload.get('caller') or
-        payload.get('caller_id') or
-        payload.get('cli') or
-        payload.get('phone_number') or
-        payload.get('customer_number') or
-        payload.get('phone') or
-        payload.get('mobile') or
-        payload.get('number')
+        p_lower.get('caller id') or
+        p_lower.get('caller_id') or
+        p_lower.get('caller') or
+        p_lower.get('caller_number') or
+        p_lower.get('from') or
+        p_lower.get('cli') or
+        p_lower.get('phone_number') or
+        p_lower.get('customer_number') or
+        p_lower.get('phone') or
+        p_lower.get('mobile') or
+        p_lower.get('number')
     )
 
-    # Destination / DID Number
+    # Dialed Phone Number (Destination / DID)
     destination_number = (
-        payload.get('destination_number') or
-        payload.get('to') or
-        payload.get('did') or
-        payload.get('virtual_number') or
-        payload.get('called_number') or
-        payload.get('destination') or
+        p_lower.get('dialed') or
+        p_lower.get('dialed_number') or
+        p_lower.get('destination_number') or
+        p_lower.get('destination') or
+        p_lower.get('called_number') or
+        p_lower.get('to') or
+        p_lower.get('did') or
+        p_lower.get('virtual_number') or
         ''
     )
 
     # Campaign Name
     campaign_name = (
-        payload.get('campaign_name') or
-        payload.get('campaign') or
-        payload.get('campaign_id') or
-        payload.get('queue') or
-        payload.get('queue_name') or
-        payload.get('client') or
+        p_lower.get('campaign_name') or
+        p_lower.get('campaign') or
+        p_lower.get('campaign_id') or
+        p_lower.get('queue') or
+        p_lower.get('queue_name') or
+        p_lower.get('client') or
         ''
     )
 
     # Call Status
     raw_status = (
-        payload.get('call_status') or
-        payload.get('status') or
-        payload.get('disposition') or
-        payload.get('event') or
-        payload.get('call_state') or
+        p_lower.get('call_status') or
+        p_lower.get('status') or
+        p_lower.get('disposition') or
+        p_lower.get('event') or
+        p_lower.get('call_state') or
         'ANSWERED'
     )
     status_choice = normalize_call_status(raw_status)
 
     # Duration in seconds
     raw_duration = (
-        payload.get('duration_seconds') or
-        payload.get('duration') or
-        payload.get('billsec') or
-        payload.get('talk_time') or
-        payload.get('duration_sec') or
+        p_lower.get('duration_seconds') or
+        p_lower.get('duration') or
+        p_lower.get('billsec') or
+        p_lower.get('talk_time') or
+        p_lower.get('duration_sec') or
         0
     )
     try:
@@ -197,30 +220,34 @@ def process_revocalls_webhook_payload(payload):
     except (ValueError, TypeError):
         duration_seconds = 0
 
-    # Call Timestamp
+    # Call Timestamp / Call Date
     raw_time = (
-        payload.get('call_time') or
-        payload.get('timestamp') or
-        payload.get('start_time') or
-        payload.get('datetime') or
-        payload.get('created_at') or
-        payload.get('time')
+        p_lower.get('call date') or
+        p_lower.get('call_date') or
+        p_lower.get('call_time') or
+        p_lower.get('call date') or
+        p_lower.get('timestamp') or
+        p_lower.get('start_time') or
+        p_lower.get('datetime') or
+        p_lower.get('created_at') or
+        p_lower.get('date') or
+        p_lower.get('time')
     )
     call_time = parse_call_time(raw_time)
 
     # Country code
     country_code = (
-        payload.get('country_code') or
-        payload.get('country') or
-        payload.get('geo') or
+        p_lower.get('country_code') or
+        p_lower.get('country') or
+        p_lower.get('geo') or
         detect_country_code(caller_number, campaign_name)
     )
 
     # Recording URL
     recording_url = (
-        payload.get('recording_url') or
-        payload.get('recording') or
-        payload.get('record_url') or
+        p_lower.get('recording_url') or
+        p_lower.get('recording') or
+        p_lower.get('record_url') or
         None
     )
 
@@ -228,12 +255,12 @@ def process_revocalls_webhook_payload(payload):
     if not caller_number:
         caller_number = 'Unknown Caller'
 
-    # Fallback call_id to prevent duplicates even if Revocalls omits call_id
+    # Fallback call_id to prevent duplicates when sending only CALL DATE, CALLER ID, DIALED
     if not call_id:
-        # Deterministic key per caller + destination + minute
         clean_p = re.sub(r'[^0-9]', '', str(caller_number))
-        time_slot = call_time.strftime('%Y%m%d%H%M')
-        call_id = f"revo_{clean_p}_{time_slot}"
+        clean_d = re.sub(r'[^0-9]', '', str(destination_number))
+        time_slot = call_time.strftime('%Y%m%d%H%M%S')
+        call_id = f"revo_{clean_p}_{clean_d}_{time_slot}"
 
     call_id = str(call_id).strip()
     caller_number = str(caller_number).strip()
