@@ -670,27 +670,32 @@ function renderCountryCard(country, idx) {
   // Active Mobile Number
   const mobileNumber = country.active_mobile_number || primaryClient.mobile_number || '';
 
-  // Calculate Latest Link Update Time
-  let latestUpdateTimeStr = country.latest_update_relative || '';
-  if (!latestUpdateTimeStr || latestUpdateTimeStr === 'No links yet') {
-    let newestDate = null;
-    clients.forEach(c => {
-      (c.links || []).forEach(l => {
-        const d = new Date(l.inserted_at || l.created_at);
-        if (!isNaN(d.getTime()) && (!newestDate || d > newestDate)) {
-          newestDate = d;
-        }
-      });
+  // Calculate Latest Link Update Time in user's local timezone (e.g. 13:21)
+  let newestDate = null;
+  clients.forEach(c => {
+    (c.links || []).forEach(l => {
+      const d = new Date(l.inserted_at || l.created_at);
+      if (!isNaN(d.getTime()) && (!newestDate || d > newestDate)) {
+        newestDate = d;
+      }
     });
-    if (newestDate) {
-      const diffMins = Math.max(0, Math.floor((Date.now() - newestDate.getTime()) / 60000));
-      const timeStr = newestDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      if (diffMins < 1) latestUpdateTimeStr = `Just now (${timeStr})`;
-      else if (diffMins < 60) latestUpdateTimeStr = `${diffMins}m ago (${timeStr})`;
-      else latestUpdateTimeStr = `${Math.floor(diffMins / 60)}h ago (${timeStr})`;
+  });
+
+  let latestUpdateTimeStr = 'No links yet';
+  if (newestDate) {
+    const diffMins = Math.max(0, Math.floor((Date.now() - newestDate.getTime()) / 60000));
+    const timeStr = newestDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    if (diffMins < 1) latestUpdateTimeStr = `Just now (${timeStr})`;
+    else if (diffMins < 60) latestUpdateTimeStr = `${diffMins}m ago (${timeStr})`;
+    else if (diffMins < 1440) {
+      const hours = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      latestUpdateTimeStr = `${hours}h ${mins}m ago (${timeStr})`;
     } else {
-      latestUpdateTimeStr = 'No links yet';
+      latestUpdateTimeStr = newestDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` (${timeStr})`;
     }
+  } else if (country.latest_update_relative) {
+    latestUpdateTimeStr = country.latest_update_relative;
   }
 
   return `

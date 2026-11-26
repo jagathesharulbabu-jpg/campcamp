@@ -73,11 +73,12 @@ class CountrySerializer(serializers.ModelSerializer):
         from django.utils import timezone
         link = self._get_latest_link(obj)
         if link and link.inserted_at:
+            local_dt = timezone.localtime(link.inserted_at)
             delta = timezone.now() - link.inserted_at
             secs = max(0, int(delta.total_seconds()))
             mins = secs // 60
             hours = mins // 60
-            time_str = link.inserted_at.strftime('%H:%M')
+            time_str = local_dt.strftime('%H:%M')
             if mins < 1:
                 return f"Just now ({time_str})"
             elif mins < 60:
@@ -85,7 +86,7 @@ class CountrySerializer(serializers.ModelSerializer):
             elif hours < 24:
                 return f"{hours}h {mins % 60}m ago ({time_str})"
             else:
-                return link.inserted_at.strftime('%b %d, %H:%M')
+                return local_dt.strftime('%b %d, %H:%M')
         return "No links yet"
 
     def get_active_mobile_number(self, obj):
