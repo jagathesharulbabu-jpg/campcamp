@@ -276,8 +276,14 @@ def sheet_settings_api(request):
         except Exception:
             data = request.POST.dict()
 
-        allowed_keys = ['tab_mode', 'sheet1_tab_override', 'sheet2_tab_override', 'client_mappings', 'is_locked']
+        allowed_keys = ['active_tab', 'tab_mode', 'sheet1_tab_override', 'sheet2_tab_override', 'client_mappings', 'is_locked']
         payload = {k: data[k] for k in allowed_keys if k in data}
+        active_val = payload.get('active_tab') or payload.get('sheet1_tab_override')
+        if active_val:
+            payload['active_tab'] = active_val.strip()
+            payload['sheet1_tab_override'] = active_val.strip()
+            payload['sheet2_tab_override'] = active_val.strip()
+            payload['tab_mode'] = 'manual'
         success = save_sheet_settings(payload)
         sync_today_calls_from_sheets(force=True)
         return JsonResponse({'status': 'SUCCESS' if success else 'ERROR'})

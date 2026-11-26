@@ -1318,12 +1318,9 @@ function renderAvailableGeosPicker() {
 function updatePulseTabDisplay() {
   const labelEl = document.getElementById('pulseTabLabel');
   if (!labelEl) return;
-  const tabName = state.activeTabName || state.todayTab || '25-nov-26';
-  const isAuto = state.tabMode === 'auto';
-  labelEl.textContent = isAuto 
-    ? `Tab: ${tabName} (Auto)` 
-    : `Tab: ${tabName}`;
-  labelEl.title = `Active Sheet Tab: ${tabName} (${isAuto ? "Auto-tracking today's date tab" : 'Manual override'})`;
+  const tabName = state.activeTabName || state.sheet1TabOverride || '26-nov-26';
+  labelEl.textContent = `Tab: ${tabName}`;
+  labelEl.title = `Active Sheet Tab: ${tabName} (Click to set or switch tab)`;
 }
 
 /**
@@ -1333,42 +1330,30 @@ function renderSettingsView() {
   const tbody = document.getElementById('simpleMappingTableBody');
   if (!tbody) return;
 
-  // 1. Tab mode radio state
-  const isAuto = state.tabMode === 'auto';
-  const autoRadio = document.getElementById('tabModeAuto');
-  const customRadio = document.getElementById('tabModeCustom');
-  const customBox = document.getElementById('customTabInputsBox');
-  if (autoRadio) autoRadio.checked = isAuto;
-  if (customRadio) customRadio.checked = !isAuto;
-  if (customBox) customBox.classList.toggle('hidden', isAuto);
+  const activeTab = state.activeTabName || state.sheet1TabOverride || '26-nov-26';
 
-  // 2. Active Tab Badge & List
+  // 1. Active Tab Badge & List
   const badge = document.getElementById('settingsActiveTabModeBadge');
-  const activeTab = state.activeTabName || state.todayTab || '25-nov-26';
-  if (badge) badge.textContent = isAuto ? `${activeTab} (AUTO)` : `${activeTab} (MANUAL)`;
+  if (badge) badge.textContent = activeTab;
 
   const listEl = document.getElementById('settingsActiveTabsList');
   if (listEl) {
     listEl.innerHTML = `
-      <span>• Active in Sheet 1 & Sheet 2: <strong>${escapeHtml(activeTab)}</strong> 
+      <span>• Active in Sheet 1 & Sheet 2: <strong class="text-blue-700 font-bold">${escapeHtml(activeTab)}</strong> 
         <a href="https://docs.google.com/spreadsheets/d/1xMdCTsAcT2vhr4cP32u2oElzDPN2e7UmoeROroLk3Lc/" target="_blank" class="text-blue-600 hover:underline ml-1">Sheet 1 ↗</a>
         <a href="https://docs.google.com/spreadsheets/d/14BY_Fnfw4f9hmcOGaPqIA6mC0pOkGRTivrimwC4uhmQ/" target="_blank" class="text-blue-600 hover:underline ml-1">Sheet 2 ↗</a>
       </span>
     `;
   }
 
-  // 3. Today's tab preview
-  const todayPreview = document.getElementById('todayTabNamePreview');
-  if (todayPreview) todayPreview.textContent = state.todayTab || '25-nov-26';
-
-  // 4. Populate recent tabs dropdown
+  // 2. Populate recent tabs dropdown
   const s1Select = document.getElementById('settingSheet1TabSelect');
   if (s1Select && state.recentTabs && state.recentTabs.length > 0) {
     s1Select.innerHTML = '<option value="">-- Recent Tab Names --</option>' +
       state.recentTabs.map(t => `<option value="${escapeHtml(t)}" ${activeTab === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
   }
   const s1Input = document.getElementById('settingSheet1TabInput');
-  if (s1Input && !s1Input.matches(':focus')) s1Input.value = state.sheet1TabOverride || activeTab;
+  if (s1Input && !s1Input.matches(':focus')) s1Input.value = activeTab;
 
   // 5. Lock indicator & Toggle button
   const lockBadge = document.getElementById('mappingLockBadge');
@@ -1541,18 +1526,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Quick Tab Modal Openers
   const openTabModal = () => {
-    const isAuto = state.tabMode === 'auto';
-    const autoRadio = document.getElementById('quickTabModeAuto');
-    const customRadio = document.getElementById('quickTabModeCustom');
-    const inputsBox = document.getElementById('quickCustomTabInputs');
-    if (autoRadio) autoRadio.checked = isAuto;
-    if (customRadio) customRadio.checked = !isAuto;
-    if (inputsBox) inputsBox.classList.toggle('hidden', isAuto);
-
+    const activeTab = state.activeTabName || state.sheet1TabOverride || '26-nov-26';
     const s1Input = document.getElementById('quickSheet1TabInput');
-    const s2Input = document.getElementById('quickSheet2TabInput');
-    if (s1Input) s1Input.value = state.sheet1TabOverride || state.lastTabs?.sheet1?.name || '';
-    if (s2Input) s2Input.value = state.sheet2TabOverride || state.lastTabs?.sheet2?.name || '';
+    if (s1Input) s1Input.value = activeTab;
+
+    const selectEl = document.getElementById('quickRecentTabsSelect');
+    if (selectEl && state.recentTabs && state.recentTabs.length > 0) {
+      selectEl.innerHTML = '<option value="">Recent Tabs...</option>' +
+        state.recentTabs.map(t => `<option value="${escapeHtml(t)}" ${activeTab === t ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+    }
 
     Modal.open('sheetTabModal');
   };
@@ -1563,47 +1545,41 @@ document.addEventListener('DOMContentLoaded', () => {
     openTabModal();
   });
 
-  // Quick Tab Radio Toggle
-  document.querySelectorAll('input[name="quickTabModeRadio"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      const isCustom = e.target.value === 'custom';
-      document.getElementById('quickCustomTabInputs')?.classList.toggle('hidden', !isCustom);
-    });
+  // Quick Tab Recent Dropdown Selection
+  document.getElementById('quickRecentTabsSelect')?.addEventListener('change', (e) => {
+    if (e.target.value) {
+      const input = document.getElementById('quickSheet1TabInput');
+      if (input) input.value = e.target.value;
+    }
   });
 
   // Quick Tab Form Submit
   document.getElementById('quickTabForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const mode = document.querySelector('input[name="quickTabModeRadio"]:checked')?.value || 'auto';
-    const s1 = document.getElementById('quickSheet1TabInput')?.value.trim() || '';
-    const s2 = document.getElementById('quickSheet2TabInput')?.value.trim() || '';
+    const tabName = (document.getElementById('quickSheet1TabInput')?.value || '').trim();
+    if (!tabName) return;
 
     Modal.close('sheetTabModal');
-    await state.saveSheetSettings({
-      tab_mode: mode,
-      sheet1_tab_override: s1,
-      sheet2_tab_override: s2
-    });
-  });
+    state.activeTabName = tabName;
+    state.sheet1TabOverride = tabName;
+    state.sheet2TabOverride = tabName;
+    state.tabMode = 'manual';
+    updatePulseTabDisplay();
 
-  // Settings Panel Tab Mode Radio Toggle
-  document.querySelectorAll('input[name="tabModeRadio"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      const isCustom = e.target.value === 'custom';
-      document.getElementById('customTabInputsBox')?.classList.toggle('hidden', !isCustom);
+    await state.saveSheetSettings({
+      active_tab: tabName,
+      sheet1_tab_override: tabName,
+      sheet2_tab_override: tabName,
+      tab_mode: 'manual'
     });
+    showToast(`Connected to sheet tab: ${tabName}`, 'success');
+    await state.fetchGeoCalls(true);
   });
 
   // Settings Panel Tab Select Dropdown Change -> fills text inputs
   document.getElementById('settingSheet1TabSelect')?.addEventListener('change', (e) => {
     if (e.target.value) {
       const input = document.getElementById('settingSheet1TabInput');
-      if (input) input.value = e.target.value;
-    }
-  });
-  document.getElementById('settingSheet2TabSelect')?.addEventListener('change', (e) => {
-    if (e.target.value) {
-      const input = document.getElementById('settingSheet2TabInput');
       if (input) input.value = e.target.value;
     }
   });
@@ -1625,18 +1601,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Settings Panel: Save All Settings Button
   document.getElementById('saveAllSettingsBtn')?.addEventListener('click', async () => {
-    const mode = document.querySelector('input[name="tabModeRadio"]:checked')?.value || 'auto';
-    const s1 = document.getElementById('settingSheet1TabInput')?.value.trim() || state.activeTabName || '25-nov-26';
+    const tabName = document.getElementById('settingSheet1TabInput')?.value.trim() || state.activeTabName || '26-nov-26';
+
+    state.activeTabName = tabName;
+    state.sheet1TabOverride = tabName;
+    state.sheet2TabOverride = tabName;
+    state.tabMode = 'manual';
+    state.isLocked = true;
+    updatePulseTabDisplay();
 
     await state.saveSheetSettings({
-      tab_mode: mode,
-      sheet1_tab_override: s1,
-      sheet2_tab_override: s1,
+      active_tab: tabName,
+      sheet1_tab_override: tabName,
+      sheet2_tab_override: tabName,
+      tab_mode: 'manual',
       client_mappings: state.clientMappings,
       is_locked: true
     });
-    state.isLocked = true;
     renderSettingsView();
+    showToast(`Connected & locked tab: ${tabName}`, 'success');
+    await state.fetchGeoCalls(true);
   });
 
   // Quick Add Cloud Account button in sidebar

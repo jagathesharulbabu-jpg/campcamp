@@ -565,55 +565,39 @@
 
         <!-- Settings Cards Layout -->
         <div class="settings-grid-layout">
-          <!-- Card 1: Google Sheet Daily Tab Setup -->
+          <!-- Card 1: Google Sheet Connected Tab Setup -->
           <div class="settings-card">
             <div class="settings-card-header">
               <div class="flex items-center gap-2.5">
                 <span class="text-xl">📑</span>
                 <div>
-                  <h3 class="font-bold text-slate-800 text-sm">Daily Sheet Tab Format (e.g. 25-nov-26)</h3>
-                  <p class="text-xs text-slate-500">Matches the DD-mmm-YY tab format created every morning</p>
+                  <h3 class="font-bold text-slate-800 text-sm">Active Google Sheet Tab Name</h3>
+                  <p class="text-xs text-slate-500">Connected sheet tab to fetch active client calls</p>
                 </div>
               </div>
             </div>
             <div class="settings-card-body">
-              <div class="tab-mode-selector">
-                <label class="tab-mode-option">
-                  <input type="radio" name="tabModeRadio" value="auto" id="tabModeAuto" checked>
-                  <div class="tab-mode-content">
-                    <span class="font-bold text-xs text-slate-800">🟢 Smart Today's Date Tab (Automatic) — Recommended</span>
-                    <span class="text-[11px] text-slate-500">Automatically tracks today's date formatted as <code>DD-mmm-YY</code> (e.g. <strong class="text-blue-600" id="todayTabNamePreview">25-nov-26</strong>) without needing manual changes.</span>
-                  </div>
-                </label>
-                <label class="tab-mode-option">
-                  <input type="radio" name="tabModeRadio" value="custom" id="tabModeCustom">
-                  <div class="tab-mode-content">
-                    <span class="font-bold text-xs text-slate-800">🔵 Specific Past Tab Override</span>
-                    <span class="text-[11px] text-slate-500">Select or type a past tab name (e.g. 24-nov-26, 23-nov-26) to view previous calls.</span>
-                  </div>
-                </label>
-              </div>
-
-              <div class="custom-tab-inputs-box hidden" id="customTabInputsBox">
-                <div class="form-group mb-2">
-                  <label class="text-xs font-semibold text-slate-700">Select or Enter Tab Name</label>
-                  <div class="flex gap-2">
-                    <input type="text" id="settingSheet1TabInput" class="form-control" placeholder="e.g. 25-nov-26">
-                    <select id="settingSheet1TabSelect" class="form-control w-44 text-xs">
-                      <option value="">Recent Tabs...</option>
-                    </select>
-                  </div>
+              <div class="form-group mb-3">
+                <label class="text-xs font-bold text-slate-700 block mb-1">Sheet Tab Name (e.g. 26-nov-26, 28-nov-26)</label>
+                <div class="flex gap-2">
+                  <input type="text" id="settingSheet1TabInput" class="form-control font-bold text-sm text-blue-700" placeholder="e.g. 26-nov-26">
+                  <select id="settingSheet1TabSelect" class="form-control w-44 text-xs">
+                    <option value="">Recent Tabs...</option>
+                  </select>
                 </div>
+                <p class="text-[11px] text-slate-500 mt-2">
+                  Enter your active sheet tab name. The dashboard continuously tracks call rows from this tab throughout your shift (11:00 AM to 2:00 AM+) without changing at midnight.
+                </p>
               </div>
 
               <!-- Live Active Tab Summary Banner -->
-              <div class="active-tabs-summary-banner mt-4 p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs flex flex-col gap-1.5">
+              <div class="active-tabs-summary-banner mt-3 p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs flex flex-col gap-1.5">
                 <div class="flex items-center justify-between font-bold text-blue-900">
-                  <span>Current Active Tab:</span>
-                  <span class="text-[10px] uppercase font-extrabold px-2 py-0.5 bg-blue-200/70 text-blue-800 rounded-full" id="settingsActiveTabModeBadge">25-nov-26 (AUTO)</span>
+                  <span>Connected Sheet Tab:</span>
+                  <span class="text-[11px] font-extrabold px-2.5 py-0.5 bg-blue-600 text-white rounded-full" id="settingsActiveTabModeBadge">26-nov-26</span>
                 </div>
                 <div class="text-[11px] text-slate-600 font-mono" id="settingsActiveTabsList">
-                  <span>• Active in Sheet 1 & Sheet 2: <strong>25-nov-26</strong></span>
+                  <span>• Active in Sheet 1 & Sheet 2: <strong id="activeTabNameDisplay">26-nov-26</strong></span>
                 </div>
               </div>
             </div>
@@ -991,47 +975,29 @@
   <div class="modal-header">
     <div class="modal-title-wrap">
       <span class="modal-icon-badge">📑</span>
-      <h3>Set Today's Google Sheet Tab</h3>
+      <h3>Connect Google Sheet Tab</h3>
     </div>
     <button class="modal-close-btn" data-close-modal="sheetTabModal">×</button>
   </div>
   <form id="quickTabForm">
     <div class="modal-body">
       <p class="text-xs text-slate-500 mb-3">
-        Every day your team creates a new tab in Sheet 1 and Sheet 2. Choose whether to auto-track the latest tab or specify today's tab name.
+        Enter the Google Sheet tab name for your current work shift (e.g. <code>26-nov-26</code>, <code>27-nov-26</code>, <code>28-nov-26</code>). The dashboard will continuously fetch and count calls from this exact sheet tab without changing at midnight.
       </p>
 
-      <div class="tab-mode-selector mb-3">
-        <label class="tab-mode-option">
-          <input type="radio" name="quickTabModeRadio" value="auto" id="quickTabModeAuto" checked>
-          <div class="tab-mode-content">
-            <span class="font-bold text-xs text-slate-800">🟢 Auto-Track Latest Tab (Recommended)</span>
-            <span class="text-[11px] text-slate-500">Always reads from the last tab created today</span>
-          </div>
-        </label>
-        <label class="tab-mode-option">
-          <input type="radio" name="quickTabModeRadio" value="custom" id="quickTabModeCustom">
-          <div class="tab-mode-content">
-            <span class="font-bold text-xs text-slate-800">🔵 Specific Tab Name</span>
-            <span class="text-[11px] text-slate-500">Enter or select the tab name for today (e.g. Nov 24, Nov 24-30)</span>
-          </div>
-        </label>
-      </div>
-
-      <div class="quick-custom-tab-inputs hidden" id="quickCustomTabInputs">
-        <div class="form-group mb-2">
-          <label class="text-xs font-semibold text-slate-700">Sheet 1 Tab Name (daily calls)</label>
-          <input type="text" id="quickSheet1TabInput" class="form-control" placeholder="e.g. Nov 24">
-        </div>
-        <div class="form-group mb-2">
-          <label class="text-xs font-semibold text-slate-700">Sheet 2 Tab Name (new1)</label>
-          <input type="text" id="quickSheet2TabInput" class="form-control" placeholder="e.g. Nov 24-30">
+      <div class="form-group mb-3">
+        <label class="text-xs font-bold text-slate-700 block mb-1">Sheet Tab Name</label>
+        <div class="flex gap-2">
+          <input type="text" id="quickSheet1TabInput" class="form-control font-bold text-blue-700" placeholder="e.g. 26-nov-26" required>
+          <select id="quickRecentTabsSelect" class="form-control w-44 text-xs">
+            <option value="">Recent Tabs...</option>
+          </select>
         </div>
       </div>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-outline" data-close-modal="sheetTabModal">Cancel</button>
-      <button type="submit" class="btn btn-primary" id="saveQuickTabBtn">Apply & Sync Tab</button>
+      <button type="submit" class="btn btn-primary" id="saveQuickTabBtn">Connect & Sync Tab</button>
     </div>
   </form>
 </div>

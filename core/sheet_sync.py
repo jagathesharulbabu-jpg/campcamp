@@ -55,12 +55,10 @@ FALLBACK_COLUMN_CALLS = {
 }
 
 DEFAULT_SETTINGS = {
-    "tab_mode": "auto",
-    "today_tab": "",
-    "sheet1_gid": "",
-    "sheet2_gid": "",
-    "sheet1_tab_override": "",
-    "sheet2_tab_override": "",
+    "active_tab": "26-nov-26",
+    "tab_mode": "manual",
+    "sheet1_tab_override": "26-nov-26",
+    "sheet2_tab_override": "26-nov-26",
     "is_locked": True,
     "client_mappings": {
         "8": "DE pulkit",
@@ -225,7 +223,7 @@ def sync_today_calls_from_sheets(force=False, quick=False):
     2. Downloads and counts calls for each column.
     3. Resolves each client campaign's calls directly from its mapped sheet field.
     """
-    cache_key = "sheet_today_calls_summary_v4"
+    cache_key = "sheet_today_calls_summary_v5"
     if not force:
         cached = cache.get(cache_key)
         if cached:
@@ -233,13 +231,16 @@ def sync_today_calls_from_sheets(force=False, quick=False):
         if quick:
             # Fast return for initial page render: load immediately without blocking HTTP calls
             settings_data = get_sheet_settings()
-            tab_mode = settings_data.get('tab_mode', 'auto')
-            today_tab = get_today_tab_name()
-            active_tab_name = today_tab if tab_mode == 'auto' else (settings_data.get('sheet1_tab_override') or today_tab)
+            active_tab_name = (
+                settings_data.get('active_tab') or
+                settings_data.get('sheet1_tab_override') or
+                settings_data.get('today_tab') or
+                '26-nov-26'
+            ).strip()
             return {
                 'active_tab_name': active_tab_name,
-                'today_tab': today_tab,
-                'tab_mode': tab_mode,
+                'today_tab': active_tab_name,
+                'tab_mode': 'manual',
                 'sheet_connected': False,
                 'available_columns': [
                     'DE pulkit', 'de anshu', 'de salm',
@@ -250,32 +251,25 @@ def sync_today_calls_from_sheets(force=False, quick=False):
                 'column_call_counts': FALLBACK_COLUMN_CALLS.copy(),
                 'client_mappings': settings_data.get('client_mappings', {}),
                 'is_locked': settings_data.get('is_locked', True),
-                'recent_tabs': get_recent_tab_names(5)
+                'recent_tabs': get_recent_tab_names(8)
             }
 
     settings_data = get_sheet_settings()
-    tab_mode = settings_data.get('tab_mode', 'auto')
-    today_tab = get_today_tab_name()
-
-    if tab_mode == 'auto':
-        active_tab_name = today_tab
-        s1_tab = today_tab
-        s2_tab = today_tab
-        s1_gid = None
-        s2_gid = None
-    else:
-        active_tab_name = settings_data.get('sheet1_tab_override') or today_tab
-        s1_tab = active_tab_name
-        s2_tab = settings_data.get('sheet2_tab_override') or active_tab_name
-        s1_gid = settings_data.get('sheet1_gid')
-        s2_gid = settings_data.get('sheet2_gid')
+    active_tab_name = (
+        settings_data.get('active_tab') or
+        settings_data.get('sheet1_tab_override') or
+        settings_data.get('today_tab') or
+        '26-nov-26'
+    ).strip()
+    tab_mode = settings_data.get('tab_mode', 'manual')
+    today_tab = active_tab_name
 
     is_locked = settings_data.get('is_locked', True)
     client_mappings = settings_data.get('client_mappings', {})
 
-    # Fetch rows
-    rows_sheet1 = fetch_sheet_csv_by_tab_name(SHEET_1_ID, s1_tab, custom_gid=s1_gid)
-    rows_sheet2 = fetch_sheet_csv_by_tab_name(SHEET_2_ID, s2_tab, custom_gid=s2_gid)
+    # Fetch rows directly from the manually configured active tab for both sheets
+    rows_sheet1 = fetch_sheet_csv_by_tab_name(SHEET_1_ID, active_tab_name)
+    rows_sheet2 = fetch_sheet_csv_by_tab_name(SHEET_2_ID, active_tab_name)
 
     sheet1_connected = len(rows_sheet1) > 0
     sheet2_connected = len(rows_sheet2) > 0

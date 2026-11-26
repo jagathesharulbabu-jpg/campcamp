@@ -1,10 +1,8 @@
 {
-  "tab_mode": "auto",
-  "today_tab": "26-nov-26",
-  "sheet1_gid": "",
-  "sheet2_gid": "",
-  "sheet1_tab_override": "",
-  "sheet2_tab_override": "",
+  "active_tab": "26-nov-26",
+  "tab_mode": "manual",
+  "sheet1_tab_override": "26-nov-26",
+  "sheet2_tab_override": "26-nov-26",
   "is_locked": true,
   "client_mappings": {
     "8": "DE pulkit",
