@@ -312,7 +312,7 @@
 
               <div class="geo-card-time-row">
                 <span class="geo-time-icon">🕒</span>
-                <span class="geo-last-call-text">Last call: <strong class="geo-time-highlight">{{ geo.last_call_time }}</strong></span>
+                <span class="geo-last-call-text">Last call: <strong class="geo-time-highlight">{{ geo.last_call_time|default:"No calls yet" }}</strong></span>
               </div>
             </div>
             {% endfor %}
@@ -872,7 +872,7 @@
           <input type="email" id="cloudEmailInput" class="form-control" placeholder="ops@popupleads.com" autocomplete="off">
         </div>
         <div class="form-group">
-          <label for="cloudAccountIdStrInput">Subscription / Project ID</label>
+          <label for="cloudAccountIdStrInput">2fa.live</label>
           <input type="text" id="cloudAccountIdStrInput" class="form-control" placeholder="e.g. do-team-core-2026 or sub-8812-4410" autocomplete="off">
         </div>
       </div>
