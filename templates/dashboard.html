@@ -288,20 +288,19 @@
             <div class="geo-call-card geo-card-{{ geo.accent }} {% if geo.is_active %}geo-is-active{% else %}geo-is-paused{% endif %}" data-geo-id="{{ geo.id }}" data-geo-code="{{ geo.code }}">
               <div class="geo-card-top">
                 <div class="geo-badge-flag">
-                  <span class="geo-flag-emoji">{{ geo.flag }}</span>
+                  <span class="geo-flag-emoji">{{ geo.code }}</span>
                   <div class="geo-code-info">
-                    <span class="geo-code-text">{{ geo.code }}</span>
-                    <span class="geo-name-text">{{ geo.name }}</span>
+                    <span class="geo-code-text">{{ geo.client_name|default:geo.name }}</span>
                   </div>
                 </div>
                 <div class="flex items-center gap-2">
-                  <div class="geo-status-indicator" title="{% if geo.is_active %}{{ geo.name }} is Active (Running){% else %}{{ geo.name }} is Paused (Stopped){% endif %}">
+                  <div class="geo-status-indicator" title="{% if geo.is_active %}{{ geo.code }} - {{ geo.client_name|default:geo.name }} is Active (Running){% else %}{{ geo.code }} - {{ geo.client_name|default:geo.name }} is Paused (Stopped){% endif %}">
                     <span class="geo-status-dot {% if geo.is_active %}dot-active{% else %}dot-paused{% endif %}"></span>
                     <span class="geo-status-pill-sm {% if geo.is_active %}pill-active{% else %}pill-paused{% endif %}">
                       {% if geo.is_active %}Active{% else %}Paused{% endif %}
                     </span>
                   </div>
-                  <button type="button" class="geo-card-remove-btn" data-remove-geo="{{ geo.id }}" data-remove-code="{{ geo.code }}" title="Remove {{ geo.name }} from live pulse">✕</button>
+                  <button type="button" class="geo-card-remove-btn" data-remove-geo="{{ geo.id }}" data-remove-code="{{ geo.code }}" title="Remove {{ geo.code }} - {{ geo.client_name|default:geo.name }} from live pulse">✕</button>
                 </div>
               </div>
 

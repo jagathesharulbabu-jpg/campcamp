@@ -1217,20 +1217,19 @@ function renderGeoCards() {
       <div class="geo-call-card geo-card-${g.accent || 'blue'} ${isActive ? 'geo-is-active' : 'geo-is-paused'}" data-geo-id="${g.id}" data-geo-code="${g.code}">
         <div class="geo-card-top">
           <div class="geo-badge-flag">
-            <span class="geo-flag-emoji">${g.flag || '🌍'}</span>
+            <span class="geo-flag-emoji">${escapeHtml(g.code || g.flag || '🌍')}</span>
             <div class="geo-code-info">
-              <span class="geo-code-text">${escapeHtml(g.code)}</span>
-              <span class="geo-name-text">${escapeHtml(g.name || g.code)}</span>
+              <span class="geo-code-text">${escapeHtml(g.client_name || g.name || g.code)}</span>
             </div>
           </div>
           <div class="flex items-center gap-1.5">
-            <div class="geo-status-indicator" title="${escapeHtml(g.name)} is ${isActive ? 'Active (Running)' : 'Paused (Stopped)'}">
+            <div class="geo-status-indicator" title="${escapeHtml(g.code)} - ${escapeHtml(g.client_name || g.name || '')} is ${isActive ? 'Active (Running)' : 'Paused (Stopped)'}">
               <span class="geo-status-dot ${isActive ? 'dot-active' : 'dot-paused'}"></span>
               <span class="geo-status-pill-sm ${isActive ? 'pill-active' : 'pill-paused'}">
                 ${isActive ? 'Active' : 'Paused'}
               </span>
             </div>
-            <button type="button" class="geo-card-remove-btn" data-remove-geo="${g.id}" data-remove-code="${g.code}" title="Remove ${escapeHtml(g.name)} from live pulse">✕</button>
+            <button type="button" class="geo-card-remove-btn" data-remove-geo="${g.id}" data-remove-code="${g.code}" title="Remove ${escapeHtml(g.code)} - ${escapeHtml(g.client_name || g.name || '')} from live pulse">✕</button>
           </div>
         </div>
 
