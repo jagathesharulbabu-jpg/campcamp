@@ -79,15 +79,6 @@
         <span class="sidebar-badge sidebar-badge-blue" id="sidebarRevocallsBadge">0 Calls</span>
       </button>
 
-      <!-- 5. Daily Calls Link -->
-      <a href="{% url 'call_logs' %}" class="sidebar-nav-btn">
-        <div class="sidebar-nav-btn-left">
-          <span class="sidebar-nav-icon">📞</span>
-          <span>Daily Calls</span>
-        </div>
-        <span class="text-xs text-slate-400">↗</span>
-      </a>
-
       <!-- 5. Sheet & Country Settings Button -->
       <button type="button" class="sidebar-nav-btn" id="tabSettingsBtn" data-view="settings">
         <div class="sidebar-nav-btn-left">
@@ -164,16 +155,6 @@
             <span>Sheet 2</span>
           </button>
         </div>
-
-        <button class="btn btn-outline" id="exportCsvBtn" title="Download data as CSV">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-          <span>Export CSV</span>
-        </button>
         
         <button class="btn btn-primary" id="topAddCountryBtn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -1143,5 +1124,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{% static 'js/app.js' %}?v=27.0"></script>
+<script src="{% static 'js/app.js' %}?v=28.0"></script>
 {% endblock %}

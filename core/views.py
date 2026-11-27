@@ -527,36 +527,8 @@ def revocalls_test_webhook_api(request):
 
 @login_required
 def call_logs_view(request):
-    """Daily Call and Activity Log page for employees."""
-    if request.method == 'POST':
-        phone_number = request.POST.get('phone_number', '').strip()
-        call_status = request.POST.get('call_status', 'CONNECTED')
-        duration_seconds = int(request.POST.get('duration_seconds') or 0)
-        remarks = request.POST.get('remarks', '').strip()
-        client_id = request.POST.get('client_id')
-        
-        client = Client.objects.filter(id=client_id).first() if client_id else None
-
-        CallLog.objects.create(
-            user=request.user,
-            client=client,
-            phone_number=phone_number,
-            call_status=call_status,
-            duration_seconds=duration_seconds,
-            call_time=timezone.now(),
-            remarks=remarks
-        )
-        messages.success(request, f"Call log for {phone_number} saved successfully!")
-        return redirect('call_logs')
-
-    # If employee, show their logs; if admin, show all logs
-    if request.user.is_admin_user:
-        calls = CallLog.objects.select_related('user', 'client').all()[:100]
-    else:
-        calls = CallLog.objects.select_related('client').filter(user=request.user)[:100]
-
-    clients = Client.objects.all()
-    return render(request, 'calls_activity.html', {'calls': calls, 'clients': clients})
+    """Legacy Daily Call page redirected cleanly to dashboard."""
+    return redirect('dashboard')
 
 
 @login_required
