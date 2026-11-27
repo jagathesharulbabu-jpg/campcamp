@@ -1389,18 +1389,31 @@ function renderAvailableGeosPicker() {
 
   const removedSet = state.removedGeos || new Set();
 
+  if (fullList.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 1.5rem; text-align: center; color: #94a3b8; font-size: 0.85rem;">
+        No country campaigns found from connected sheets.
+      </div>
+    `;
+    return;
+  }
+
   container.innerHTML = fullList.map(g => {
     const isHidden = removedSet.has(String(g.id)) || (!g.id && removedSet.has(String(g.code)));
     return `
-      <button type="button" class="btn btn-outline btn-xs geo-pick-chip ${isHidden ? 'border-dashed border-blue-400 bg-blue-50/50' : 'opacity-60 bg-slate-50'}" 
-              data-pick-geo-id="${g.id}" 
-              data-pick-code="${g.code}" 
-              data-pick-name="${escapeHtml(g.name)}" 
-              title="${isHidden ? 'Click to add to Live Pulse' : 'Currently visible in Live Pulse'}">
-        <span>${g.flag || '🌍'}</span>
-        <span class="font-semibold">${escapeHtml(g.name)}</span>
-        ${isHidden ? '<span class="text-[10px] text-blue-600 font-bold ml-1">+ Add</span>' : '<span class="text-[9px] text-emerald-600 font-bold ml-1">✓ Active</span>'}
-      </button>
+      <div class="geo-pick-card ${isHidden ? 'is-available' : 'is-already-active'}" 
+           data-pick-geo-id="${g.id}" 
+           data-pick-code="${g.code}" 
+           data-pick-name="${escapeHtml(g.name)}" 
+           role="button"
+           tabindex="0"
+           title="${isHidden ? 'Click to add to Live Pulse' : 'Currently visible in Live Pulse'}">
+        <span class="geo-pick-flag">${escapeHtml(g.code || g.flag || '🌍')}</span>
+        <span class="geo-pick-name truncate">${escapeHtml(g.name)}</span>
+        ${isHidden 
+          ? '<span class="geo-pick-action-btn">+ Add</span>' 
+          : '<span class="geo-pick-status-active">✓ Active</span>'}
+      </div>
     `;
   }).join('');
 }
@@ -2131,10 +2144,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Open Add Country to Live Pulse Modal (+ Add Country in tracker header)
     if (e.target.closest('#openAddGeoBtn')) {
-      document.getElementById('addGeoForm')?.reset();
       renderAvailableGeosPicker();
       Modal.open('addGeoModal');
-      setTimeout(() => document.getElementById('customGeoCodeInput')?.focus(), 100);
       return;
     }
 
@@ -2144,6 +2155,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const geoId = pickChip.dataset.pickGeoId;
       const code = (pickChip.dataset.pickCode || '').toUpperCase();
       const name = pickChip.dataset.pickName || code;
+
+      const isAlreadyActive = pickChip.classList.contains('is-already-active');
+      if (isAlreadyActive) {
+        showToast(`${name} is already active in Live Pulse`, 'info');
+        return;
+      }
+
       if (geoId) state.removedGeos.delete(String(geoId));
       if (code) state.removedGeos.delete(String(code));
       try { localStorage.setItem('removed_geos', JSON.stringify(Array.from(state.removedGeos))); } catch (err) {}
