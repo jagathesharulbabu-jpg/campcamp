@@ -64,10 +64,11 @@ class CountrySerializer(serializers.ModelSerializer):
         return PopupLink.objects.filter(client__country=obj).order_by('-inserted_at').first()
 
     def get_latest_update_time(self, obj):
+        from django.utils import timezone
         link = self._get_latest_link(obj)
         if link and link.inserted_at:
-            return link.inserted_at.isoformat()
-        return obj.updated_at.isoformat() if obj.updated_at else None
+            return timezone.localtime(link.inserted_at).isoformat()
+        return timezone.localtime(obj.updated_at).isoformat() if obj.updated_at else None
 
     def get_latest_update_relative(self, obj):
         from django.utils import timezone
