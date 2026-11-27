@@ -126,7 +126,7 @@
         <div class="header-breadcrumbs">
           <span class="crumb-lead">Dashboard</span>
           <span class="crumb-separator">/</span>
-          <span class="crumb-current" id="activeViewLabel">All Country Campaigns</span>
+          <span class="crumb-current" id="activeViewLabel">All GEO Campaigns</span>
         </div>
       </div>
 
@@ -254,8 +254,8 @@
                 <div class="flex items-center gap-2 flex-wrap">
                   <h3 class="geo-tracker-title">Live Geo Calls & Activity Pulse</h3>
                   <span class="live-pulse-badge">
-                    <span class="badge-pulse-dot"></span>
-                    <span>LIVE PULSE</span>
+                    <span class="live-pulse-dot"></span>
+                    <span>Live Pulse</span>
                   </span>
                   <!-- Today's Sheet Tab Pill (Circled by user with 'tab') -->
                   <div class="pulse-tab-badge" id="pulseTabIndicator" title="Click to view or switch today's Google Sheet tab">
@@ -270,8 +270,8 @@
 
             <div class="geo-tracker-summary-group">
               <div class="total-calls-pill">
-                <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Calls Today</span>
-                <span class="total-calls-number" id="totalCallsTodayCount">{{ total_calls_today }}</span>
+                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Calls Today</span>
+                <span class="total-calls-number" id="totalCallsTodayCount">{{ total_calls_today|default:"0" }}</span>
               </div>
 
               <!-- + Add Country to Live Pulse Button (Circled by user) -->
@@ -312,7 +312,7 @@
                       {% if geo.is_active %}Active{% else %}Paused{% endif %}
                     </span>
                   </div>
-                  <button type="button" class="geo-card-remove-btn" data-remove-geo="{{ geo.id }}" data-remove-code="{{ geo.code }}" title="Remove {{ geo.code }} - {{ geo.client_name|default:geo.name }} from live pulse">✕</button>
+                  <button type="button" class="geo-card-remove-btn" data-remove-geo="{{ geo.id }}" data-remove-code="{{ geo.code }}" title="Remove {{ geo.code }} - {{ geo.client_name|default:geo.name }} from live pulse" aria-label="Remove country card">✕</button>
                 </div>
               </div>
 
@@ -1174,5 +1174,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{% static 'js/app.js' %}?v=24.0"></script>
+<script src="{% static 'js/app.js' %}?v=25.0"></script>
 {% endblock %}

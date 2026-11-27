@@ -847,7 +847,7 @@ function renderCountryCard(country, idx) {
           return `
             <div class="client-block">
               <div class="client-block-header">
-                <span class="client-name">🏢 ${escapeHtml(client.name)}</span>
+               
                 <button class="btn btn-primary btn-sm" data-add-entry="${country.id}" data-client-id="${client.id}">
                   + Add Link Entry
                 </button>
@@ -1279,7 +1279,13 @@ function renderGeoCards() {
       });
 
   const removedSet = state.removedGeos || new Set();
-  const visibleGeos = fullList.filter(g => !removedSet.has(String(g.id)) && !removedSet.has(String(g.code)));
+  const visibleGeos = fullList.filter(g => {
+    const idStr = String(g.id || '');
+    const codeStr = String(g.code || '').toUpperCase();
+    if (idStr && removedSet.has(idStr)) return false;
+    if (!idStr && codeStr && removedSet.has(codeStr)) return false;
+    return true;
+  });
 
   let totalCalls = 0;
   visibleGeos.forEach(g => {
@@ -1321,7 +1327,7 @@ function renderGeoCards() {
                 ${isActive ? 'Active' : 'Paused'}
               </span>
             </div>
-            <button type="button" class="geo-card-remove-btn" data-remove-geo="${g.id}" data-remove-code="${g.code}" title="Remove ${escapeHtml(g.code)} - ${escapeHtml(g.client_name || g.name || '')} from live pulse">✕</button>
+            <button type="button" class="geo-card-remove-btn" data-remove-geo="${g.id}" data-remove-code="${g.code}" title="Remove ${escapeHtml(g.code)} - ${escapeHtml(g.client_name || g.name || '')} from live pulse" aria-label="Remove country card">✕</button>
           </div>
         </div>
 
@@ -1384,7 +1390,7 @@ function renderAvailableGeosPicker() {
   const removedSet = state.removedGeos || new Set();
 
   container.innerHTML = fullList.map(g => {
-    const isHidden = removedSet.has(String(g.id)) || removedSet.has(String(g.code));
+    const isHidden = removedSet.has(String(g.id)) || (!g.id && removedSet.has(String(g.code)));
     return `
       <button type="button" class="btn btn-outline btn-xs geo-pick-chip ${isHidden ? 'border-dashed border-blue-400 bg-blue-50/50' : 'opacity-60 bg-slate-50'}" 
               data-pick-geo-id="${g.id}" 
@@ -1728,6 +1734,17 @@ window.inspectRevocallsPayload = function(callId) {
 
 // 7. Event Handlers & Initialization
 document.addEventListener('DOMContentLoaded', () => {
+  // Prune any cards previously removed by user from server-rendered HTML immediately on DOM ready
+  if (state.removedGeos && state.removedGeos.size > 0) {
+    document.querySelectorAll('.geo-call-card').forEach(card => {
+      const geoId = card.dataset.geoId;
+      const geoCode = (card.dataset.geoCode || '').toUpperCase();
+      if ((geoId && state.removedGeos.has(String(geoId))) || (!geoId && geoCode && state.removedGeos.has(geoCode))) {
+        card.remove();
+      }
+    });
+  }
+
   state.fetchAll();
 
   // Automatic Live Sync from Google Sheets: polls every 25 seconds so any new entry done in sheet automatically reflects in dashboard!
@@ -2129,7 +2146,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = pickChip.dataset.pickName || code;
       if (geoId) state.removedGeos.delete(String(geoId));
       if (code) state.removedGeos.delete(String(code));
-      localStorage.setItem('removed_geos', JSON.stringify(Array.from(state.removedGeos)));
+      try { localStorage.setItem('removed_geos', JSON.stringify(Array.from(state.removedGeos))); } catch (err) {}
       renderGeoCards();
       renderAvailableGeosPicker();
       Modal.close('addGeoModal');
@@ -2138,13 +2155,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Remove Country from Live Pulse Grid
-    const removeGeoBtn = e.target.closest('[data-remove-geo]');
+    const removeGeoBtn = e.target.closest('[data-remove-geo], .geo-card-remove-btn');
     if (removeGeoBtn) {
-      const targetId = removeGeoBtn.dataset.removeGeo;
-      const targetCode = (removeGeoBtn.dataset.removeCode || '').toUpperCase();
+      e.preventDefault();
+      e.stopPropagation();
+      const card = removeGeoBtn.closest('.geo-call-card');
+      const targetId = removeGeoBtn.dataset.removeGeo || card?.dataset.geoId;
+      const targetCode = (removeGeoBtn.dataset.removeCode || card?.dataset.geoCode || '').toUpperCase();
+
       if (targetId) state.removedGeos.add(String(targetId));
-      if (targetCode) state.removedGeos.add(String(targetCode));
-      localStorage.setItem('removed_geos', JSON.stringify(Array.from(state.removedGeos)));
+      else if (targetCode) state.removedGeos.add(String(targetCode));
+
+      try {
+        localStorage.setItem('removed_geos', JSON.stringify(Array.from(state.removedGeos)));
+      } catch (err) {}
+
+      // Instant visual feedback with smooth collapse animation
+      if (card) {
+        card.style.transition = 'all 0.18s ease-out';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.85)';
+        setTimeout(() => {
+          card.remove();
+          // Update total calls count in header pill
+          const remaining = document.querySelectorAll('.geo-call-card');
+          let remainingTotal = 0;
+          remaining.forEach(c => {
+            const cnt = c.querySelector('.geo-calls-count');
+            if (cnt) remainingTotal += (parseInt(cnt.textContent, 10) || 0);
+          });
+          const totEl = document.getElementById('totalCallsTodayCount');
+          if (totEl) totEl.textContent = remainingTotal;
+        }, 180);
+      }
+
       renderGeoCards();
       renderAvailableGeosPicker();
       showToast('Removed country from Live Pulse Tracker', 'info');
