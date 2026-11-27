@@ -250,26 +250,23 @@
                 <span class="pulse-call-ring"></span>
                 <span>📞</span>
               </div>
-              <div>
+              <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                   <h3 class="geo-tracker-title">Live Geo Calls & Activity Pulse</h3>
-                  
-                  <!-- Today's Sheet Tab Pill (Circled by user with 'tab') -->
+                  <!-- Today's Sheet Tab Pill -->
                   <div class="pulse-tab-badge" id="pulseTabIndicator" title="Click to view or switch today's Google Sheet tab">
                     <span class="pulse-tab-icon">📑</span>
                     <span class="pulse-tab-text" id="pulseTabLabel">Tab: Loading...</span>
                     <button type="button" class="btn-pulse-edit-tab" id="openTabModalBtn" title="Set or switch today's Sheet Tab">✏️</button>
                   </div>
-                
+                </div>
+              </div>
             </div>
 
             <div class="geo-tracker-summary-group">
-              <div class="total-calls-pill">
-                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Calls Today</span>
-                <span class="total-calls-number" id="totalCallsTodayCount">{{ total_calls_today|default:"0" }}</span>
-              </div>
+              <span id="totalCallsTodayCount" class="hidden">{{ total_calls_today|default:"0" }}</span>
 
-              <!-- + Add Country to Live Pulse Button (Circled by user) -->
+              <!-- + Add Country to Live Pulse Button -->
               <button type="button" class="btn btn-primary btn-sm" id="openAddGeoBtn" title="Add another country to live pulse tracker">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -1169,5 +1166,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{% static 'js/app.js' %}?v=25.0"></script>
+<script src="{% static 'js/app.js' %}?v=26.0"></script>
 {% endblock %}
