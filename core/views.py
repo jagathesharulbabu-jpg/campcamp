@@ -367,21 +367,23 @@ def revocalls_webhook_api(request):
         return JsonResponse({'status': 'error', 'message': 'Method not allowed. Use POST for incoming webhooks.'}, status=405)
 
     payload = {}
-    # Parse JSON body first
-    if request.content_type and 'application/json' in request.content_type.lower():
+    # Parse body first (JSON or form data)
+    if request.body:
         try:
             payload = json.loads(request.body.decode('utf-8'))
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': f'Invalid JSON payload: {str(e)}'}, status=400)
-    else:
-        # Form-urlencoded or raw body decode
-        try:
-            if request.body:
-                payload = json.loads(request.body.decode('utf-8'))
-            else:
-                payload = request.POST.dict()
         except Exception:
-            payload = request.POST.dict()
+            try:
+                payload = request.POST.dict()
+            except Exception:
+                payload = {}
+    elif request.POST:
+        payload = request.POST.dict()
+
+    # Merge URL query parameters (Revocalls sends params via query string when using PARAMS tab)
+    if request.GET:
+        for k, v in request.GET.items():
+            if k not in payload or not payload[k]:
+                payload[k] = v
 
     if not payload:
         return JsonResponse({'status': 'error', 'message': 'Empty payload received'}, status=400)

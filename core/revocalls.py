@@ -260,7 +260,8 @@ def process_revocalls_webhook_payload(payload):
         clean_p = re.sub(r'[^0-9]', '', str(caller_number))
         clean_d = re.sub(r'[^0-9]', '', str(destination_number))
         time_slot = call_time.strftime('%Y%m%d%H%M%S')
-        call_id = f"revo_{clean_p}_{clean_d}_{time_slot}"
+        sub = f"{clean_p}_{clean_d}" if (clean_p or clean_d) else uuid.uuid4().hex[:8]
+        call_id = f"revo_{sub}_{time_slot}"
 
     call_id = str(call_id).strip()
     caller_number = str(caller_number).strip()
