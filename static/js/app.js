@@ -312,10 +312,18 @@ const state = {
 
   async saveLinkEntry(entryData) {
     try {
+      let insertedIso = new Date().toISOString();
+      if (entryData.insertedAt) {
+        const parsed = new Date(entryData.insertedAt);
+        if (!isNaN(parsed.getTime())) {
+          insertedIso = parsed.toISOString();
+        }
+      }
+
       const payload = {
         client: entryData.clientId,
         url: entryData.link,
-        inserted_at: entryData.insertedAt || new Date().toISOString()
+        inserted_at: insertedIso
       };
       if (entryData.mobile) payload.mobile_numbers = entryData.mobile;
 
@@ -531,6 +539,20 @@ function formatDateTimeDisplay(dateStr) {
   } catch (e) {
     return dateStr;
   }
+}
+
+/**
+ * Returns YYYY-MM-DDTHH:mm string in browser's local timezone for datetime-local inputs
+ */
+function getLocalDateTimeInputValue(date = new Date()) {
+  const d = new Date(date);
+  const pad = n => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 /**
@@ -2103,7 +2125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addEntryBtn = e.target.closest('[data-add-entry]');
     if (addEntryBtn) {
       document.getElementById('entryClientIdInput').value = addEntryBtn.dataset.clientId;
-      document.getElementById('entryTimeInput').value = new Date().toISOString().slice(0, 16);
+      document.getElementById('entryTimeInput').value = getLocalDateTimeInputValue();
       Modal.open('entryModal');
       return;
     }
@@ -2321,7 +2343,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Set Current Time
   document.getElementById('setCurrentTimeBtn')?.addEventListener('click', () => {
-    document.getElementById('entryTimeInput').value = new Date().toISOString().slice(0, 16);
+    document.getElementById('entryTimeInput').value = getLocalDateTimeInputValue();
   });
 
   // Sort Select Dropdown Listener
