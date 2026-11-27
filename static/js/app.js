@@ -1223,6 +1223,25 @@ function renderApp() {
 }
 
 /**
+ * Helper to compute live elapsed time for a geo card
+ */
+function getGeoCardLastCallString(geo) {
+  const calls = Number(geo.calls_count || 0);
+  if (calls <= 0) return "No calls yet";
+  const cid = String(geo.id);
+  if (!state.lastCallTimestamps[cid]) {
+    state.lastCallTimestamps[cid] = Date.now();
+    try { localStorage.setItem('last_call_timestamps', JSON.stringify(state.lastCallTimestamps)); } catch (e) {}
+  }
+  const recorded = state.lastCallTimestamps[cid] || Date.now();
+  const diffMins = Math.max(0, Math.floor((Date.now() - recorded) / 60000));
+  const timeStr = new Date(recorded).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  if (diffMins < 1) return `Just now (${timeStr})`;
+  if (diffMins < 60) return `${diffMins}m ago (${timeStr})`;
+  return `Today ${timeStr} (${Math.floor(diffMins / 60)}h ${diffMins % 60}m ago)`;
+}
+
+/**
  * Renders the Live Geo Calls horizontal cards.
  * Displays all active and configured country campaigns.
  * Allows adding and removing countries dynamically.
@@ -1243,13 +1262,7 @@ function renderGeoCards() {
         const code = (c.flag_emoji && c.flag_emoji.length <= 4 ? c.flag_emoji : c.name.slice(0, 2)).toUpperCase();
         const calls = state.columnCallCounts[state.clientMappings[String(c.id)]] || c.calls_count || 0;
         const isActive = (c.status || '').toUpperCase() === 'ACTIVE';
-        let lastCallTime = "No calls yet";
-        if (calls > 0) {
-          const minsAgo = isActive ? Math.max(1, (c.id * 3 + calls * 2) % 15 + 2) : Math.max(15, (c.id * 7 + calls * 3) % 45 + 20);
-          const d = new Date(Date.now() - minsAgo * 60000);
-          const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-          lastCallTime = minsAgo < 60 ? `${minsAgo}m ago (${timeStr})` : `Today ${timeStr} (${Math.floor(minsAgo / 60)}h ${minsAgo % 60}m ago)`;
-        }
+        const lastCallTime = getGeoCardLastCallString({ id: c.id, calls_count: calls });
 
         return {
           id: c.id,
@@ -1290,6 +1303,7 @@ function renderGeoCards() {
     const countDisplay = state.isLoadingCalls
       ? '<span class="loading-pulse-dots font-mono text-slate-400">...</span>'
       : (g.calls_count !== undefined ? g.calls_count : 0);
+    const lastCallStr = getGeoCardLastCallString(g);
 
     return `
       <div class="geo-call-card geo-card-${g.accent || 'blue'} ${isActive ? 'geo-is-active' : 'geo-is-paused'}" data-geo-id="${g.id}" data-geo-code="${g.code}">
@@ -1318,7 +1332,7 @@ function renderGeoCards() {
 
         <div class="geo-card-time-row">
           <span class="geo-time-icon">🕒</span>
-          <span class="geo-last-call-text">Last call: <strong class="geo-time-highlight">${escapeHtml(g.last_call_time || (g.calls_count > 0 ? "Just now" : "No calls yet"))}</strong></span>
+          <span class="geo-last-call-text">Last call: <strong class="geo-time-highlight">${escapeHtml(lastCallStr)}</strong></span>
         </div>
       </div>
     `;
@@ -1961,13 +1975,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Open / Close Mobile Sidebar
+  // Open / Close Mobile Sidebar with Backdrop & Body Lock
   const sidebar = document.getElementById('sidebar');
-  document.getElementById('menuToggleBtn')?.addEventListener('click', () => {
-    sidebar?.classList.toggle('open');
-  });
-  document.getElementById('sidebarCloseBtn')?.addEventListener('click', () => {
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+  function openMobileSidebar() {
+    sidebar?.classList.add('open');
+    sidebar?.classList.add('is-mobile-open');
+    sidebarBackdrop?.classList.add('is-open');
+    document.body.classList.add('sidebar-mobile-locked');
+  }
+
+  function closeMobileSidebar() {
     sidebar?.classList.remove('open');
+    sidebar?.classList.remove('is-mobile-open');
+    sidebarBackdrop?.classList.remove('is-open');
+    document.body.classList.remove('sidebar-mobile-locked');
+  }
+
+  document.getElementById('menuToggleBtn')?.addEventListener('click', () => {
+    const isOpen = sidebar?.classList.contains('open') || sidebar?.classList.contains('is-mobile-open');
+    if (isOpen) {
+      closeMobileSidebar();
+    } else {
+      openMobileSidebar();
+    }
+  });
+
+  document.getElementById('sidebarCloseBtn')?.addEventListener('click', closeMobileSidebar);
+  sidebarBackdrop?.addEventListener('click', closeMobileSidebar);
+
+  // Auto-close sidebar on mobile when navigating
+  document.querySelectorAll('.sidebar-nav-btn, #sidebarAddCloudAccountBtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (window.innerWidth <= 1024) {
+        closeMobileSidebar();
+      }
+    });
   });
 
   // Delegated Click Handlers (Toggle country, copy, edit, delete, etc.)

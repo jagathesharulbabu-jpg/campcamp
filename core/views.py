@@ -121,21 +121,8 @@ def get_geo_call_stats(force=False, quick=False):
             else:
                 last_call_time = f"Today {time_str} ({mins // 60}h {mins % 60}m ago)"
         elif calls > 0:
-            if is_active:
-                mins_offset = max(1, (int(country.id) * 3 + int(calls) * 2) % 15 + 2)
-            else:
-                c_updated = timezone.localtime(country.updated_at)
-                diff = max(1, int((now - c_updated).total_seconds() // 60))
-                mins_offset = min(diff, 120) if diff < 300 else ((int(country.id) * 7 + int(calls) * 3) % 45 + 20)
-
-            call_dt = now - timezone.timedelta(minutes=mins_offset)
-            time_str = call_dt.strftime('%H:%M')
-            if mins_offset < 1:
-                last_call_time = f"Just now ({time_str})"
-            elif mins_offset < 60:
-                last_call_time = f"{mins_offset}m ago ({time_str})"
-            else:
-                last_call_time = f"Today {time_str} ({mins_offset // 60}h {mins_offset % 60}m ago)"
+            time_str = now.strftime('%H:%M')
+            last_call_time = f"Just now ({time_str})"
         else:
             last_call_time = "No calls yet"
 
